@@ -105,6 +105,6 @@ palette = [[128, 64, 128],
 
 palette_bgr = [ [l[2], l[1], l[0]] for l in palette]
 
-label_ignore = 19 # mask that I artificially introduce
+LABEL_IGNORE = 19 # mask that I artificially introduce
 # all moving objects in cityscapes
 labels_foreground = np.array([ 11, 12, 13, 14, 15, 16, 17, 18]) 
