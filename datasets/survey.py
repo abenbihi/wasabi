@@ -1,6 +1,4 @@
-"""
-Defines Survey class and the edge game.
-"""
+"""Defines Survey class."""
 import os, argparse, time
 import numpy as np
 import cv2
@@ -28,14 +26,15 @@ class Survey(object):
         Args:
             img_dir: bgr image directory.
             seg_dir: semantic segmentation image directory.
-            meta_fn: file with list of image names and poses. Must have the
-                following format: img name relative to img_dir, camera rotation
-                in quaternion (qw, qx, qy, qz), camera translation (x,y,z) and
-                not camera center.
+            meta_fn: file with list of image names and poses, named:
+                "%d/c%d_%d.txt"%(slice_id, cam_id, survey_id).
+                Each line is formatted as follow: img name relative to img_dir,
+                camera rotation in quaternion (qw, qx, qy, qz), camera 
+                translation (x,y,z) and not camera center.
+
         """
         self.img_dir = img_dir
         self.seg_dir = seg_dir
-        self.survey_id = survey_id
         
         if os.stat(meta_fn).st_size == 0:
             raise ValueError("This file is empty: %s"%meta_fn)
@@ -44,8 +43,20 @@ class Survey(object):
         self.fn_v = meta[:,0]
 
         self.pose_v = meta[:,5:].astype(np.float32)
-        self.img_num = self.fn_v.shape[0]
+        self.size = self.fn_v.shape[0]
         self.survey_ok = 1
+
+    def get_size(self):
+        """Returns the size of the survey i.e. the number of images."""
+        return self.size
+
+    def get_fn_v(self):
+        """Returns the array of filenames."""
+        return self.fn_v
+
+    def get_pose_v(self):
+        """Returns the array of camera poses."""
+        return self.pose_v
 
     def update(self, ok):
         """Keep only the image where ok is 1.
@@ -55,7 +66,7 @@ class Survey(object):
         """
         self.fn_v = self.fn_v[ok==1]
         self.pose_v = self.pose_v[ok==1]
-        self.img_num = self.fn_v.shape[0]
+        self.size = self.fn_v.shape[0]
     
     def check_idx(self, idx):
         """Checks whether the image index idx is within bounds.
@@ -63,9 +74,9 @@ class Survey(object):
         Args:
             idx: integer index.
         """
-        if idx >= self.img_num:
+        if idx >= self.size:
             raise ValueError("You ask for an image out of bounds."
-                    "idx >= img_num: %d >= %d"%(idx, self.img_num))
+                    "idx >= size: %d >= %d"%(idx, self.size))
     
     def get_img_fn(self, idx):
         """Returns the full path image filename with index idx.
@@ -74,12 +85,16 @@ class Survey(object):
             idx: integer index.
         """
         self.check_idx(idx)
-        img_fn = '%s/%s'%(self.img_dir, self.fn_v[idx])
-        return img_fn
+        return('%s/%s'%(self.img_dir, self.fn_v[idx]))
+
+    def get_pose(self, idx):
+        """Returns pose of the idx-th image."""
+        self.check_idx(idx)
+        return self.pose_v[idx]
 
     def proc_img(self, img):
         """Processes the image. The image may need to be resized or denoised.
-        """        
+        """       
         raise NotImplementedError('Must be implemented by subclasses')
 
     def get_img(self, idx):
@@ -90,19 +105,18 @@ class Survey(object):
         """
         self.check_idx(idx)
         img_fn = '%s/%s'%(self.img_dir, self.fn_v[idx])
+        #print("img_fn: %s"%img_fn)
         img = cv2.imread(img_fn)
         img = self.proc_img(img)
         return img
 
     def get_semantic_img(self, idx):
-        """Returns the processed semantic map for the image at index idx.
-        """
+        """Returns the processed semantic map for the image at index idx."""
         raise NotImplementedError('Must be implemented by subclasses')
 
 
 class CMUSurvey(Survey):
-    """Survey implementation for the CMU-Seasons dataset.
-    """
+    """Survey implementation for the CMU-Seasons dataset."""
     def __init__(self, meta_fn, img_dir, seg_dir):
         """Constructs a CMU-Seasons survey.
         
@@ -213,6 +227,27 @@ class SymphonySurvey(Survey):
         return sem_img_new
 
 
+class SurveyFactory(object):
+    """Factory class for surveys.
+    
+    Taken from 
+    https://realpython.com/factory-method-python/#separate-object-creation-to-provide-common-interface
+    """
+    def __init__(self):
+        self._builders = {}
+        self._builders["cmu"] = CMUSurvey
+        self._builders["symphony"] = SymphonySurvey
+
+    def register_builder(self, key, builder):
+        self._builders[key] = builder
+
+    def create(self, key, **kwargs):
+        builder = self._builders[key]
+        if not builder:
+            raise ValueError(key)
+        return builder(**kwargs)
+
+
 if __name__=='__main__':
 
     data = "lake"
@@ -227,9 +262,12 @@ if __name__=='__main__':
             meta_fn = "%s/%d/c%d_db.txt"%(meta_dir, slice_id, cam_id)
         else:
             meta_fn = "%s/%d/c%d_%d.txt"%(meta_dir, slice_id, cam_id, survey_id)
-        survey = CMUSurvey(meta_fn, img_dir, seg_dir)
+        #survey = CMUSurvey(meta_fn, img_dir, seg_dir)
+        surveyFactory = SurveyFactory()
+        kwargs = {"meta_fn": meta_fn, "img_dir": img_dir, "seg_dir": seg_dir}
+        survey = surveyFactory.create("cmu", **kwargs)
         
-        for idx in range(survey.img_num):
+        for idx in range(survey.size):
             img = survey.get_img(idx)
             cv2.imshow("img", img)
             if (cv2.waitKey(0) & 0xFF) == ord("q"):
@@ -240,15 +278,19 @@ if __name__=='__main__':
         img_dir = "/mnt/lake/VBags/"
         seg_dir = "%s/tf/cross-season-segmentation/res/icra_retrieval/"%cst.WS_DIR
         mask_dir = "%s/datasets/lake/datasets/icra_retrieval/water/global"%cst.WS_DIR
+        slice_id = 0 # always
+        cam_id = 0 # always
         survey_id = 0
-        
+ 
         if survey_id == -1:
-            meta_fn = "%s/db.txt"%meta_dir 
+            meta_fn = "%s/%d/c%d_db.txt"%(meta_dir, slice_id, cam_id)
         else:
-            meta_fn = "%s/%d.txt"%(meta_dir, survey_id)
-
-        survey = SymphonySurvey(meta_fn, img_dir, seg_dir, mask_dir)
-        for idx in range(survey.img_num):
+            meta_fn = "%s/%d/c%d_%d.txt"%(meta_dir, slice_id, cam_id, survey_id)       
+        surveyFactory = SurveyFactory()
+        kwargs = {"meta_fn": meta_fn, "img_dir": img_dir, "seg_dir": seg_dir,
+                "mask_dir": mask_dir}
+        survey = surveyFactory.create("symphony", **kwargs)
+        for idx in range(survey.size):
             print(survey.get_img_fn(idx))
 
     else:

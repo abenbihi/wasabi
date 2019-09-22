@@ -1,7 +1,7 @@
 """Various constants."""
 import numpy as np
 
-MACHINE = 2
+MACHINE = 0
 DATA='inria_holidays'
 
 if MACHINE == -1:
