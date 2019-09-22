@@ -54,7 +54,8 @@ class Retrieval(object):
         ac = len(list(self.gt_name_d.keys()))
         if (aa!=ab) or (aa!=ac) or (ab!=ac):
             raise ValueError("You did not filter out the useless queries correctly.")
-
+    
+    # TODO: is there a better way to export this
     def get_img_q(self, idx):
         """Returns idx-th image of query survey."""
         return self.q_survey.get_img(idx)
@@ -63,6 +64,14 @@ class Retrieval(object):
         """Returns idx-th image of database survey."""
         return self.db_survey.get_img(idx)
 
+    def get_semantic_img_q(self, idx):
+        """Returns idx-th image of query survey."""
+        return self.q_survey.get_semantic_img(idx)
+
+    def get_semantic_img_db(self, idx):
+        """Returns idx-th image of database survey."""
+        return self.db_survey.get_semantic_img(idx)
+
     def get_pose_q(self, idx):
         """Returns idx-th pose of query survey."""
         return self.q_survey.get_pose(idx)
@@ -70,6 +79,12 @@ class Retrieval(object):
     def get_pose_db(self, idx):
         """Returns idx-th of database survey."""
         return self.db_survey.get_pose(idx)
+
+    def get_db_size(self):
+        return self.db_size
+
+    def get_q_size(self):
+        return self.q_size
 
     def get_gt_idx(self, dist_pos=None):
         """Computes pairs of matching database-query image indices.

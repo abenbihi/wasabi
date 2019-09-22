@@ -19,7 +19,7 @@ def col2lab(col, colors=cst.palette_bgr):
     #kernel = np.ones((2,2),np.uint8)
     #col = cv2.dilate(col, kernel,iterations = 1)
 
-    lab = label_ignore * np.ones(col.shape[:2]).astype(np.uint8)
+    lab = cst.LABEL_IGNORE * np.ones(col.shape[:2]).astype(np.uint8)
     
     #pixel_num = 0
     #print(col)
@@ -118,7 +118,7 @@ def merge_small_blobs(lab):
             # else merge it with its neighbour
             
             # define neighbour range
-            lab[mask_out[1:-1, 1:-1]==1] = label_ignore
+            lab[mask_out[1:-1, 1:-1]==1] = cst.LABEL_IGNORE
             r_mask, c_mask = np.where(mask_out[1:-1, 1:-1] == 1)
             patch_size = 20
             br = np.maximum(0, np.min(r_mask) - patch_size)
@@ -135,16 +135,17 @@ def merge_small_blobs(lab):
             lab_neighbour = lab[br:er, bc:ec]
             #print(np.unique(lab_neighbour))
 
-            y_db, x_db = np.where(lab_neighbour!=label_ignore)
+            y_db, x_db = np.where(lab_neighbour!=cst.LABEL_IGNORE)
             #print(y_db)
+            #print(y_db.shape)
             #print(br, er)
             #input('wait')
             
             y_db += br
             x_db += bc
-            y_q, x_q = np.where(lab==label_ignore)
+            y_q, x_q = np.where(lab==cst.LABEL_IGNORE)
             
-            knn = NearestNeighbors(n_jobs=-1)
+            knn = NearestNeighbors(n_jobs=1)
             knn.fit(np.vstack((x_db, y_db)).T)
             positives = knn.kneighbors(np.vstack((x_q, y_q)).T, 1,
                     return_distance=False)
@@ -420,16 +421,16 @@ def substract_foreground(lab, min_blob_size=500):
         else:
             lab_masked = lab.copy()
             for label_id in labels_foreground_present:
-                lab_masked[lab_masked==label_id] = label_ignore
+                lab_masked[lab_masked==label_id] = cst.LABEL_IGNORE
 
             lab_filled = lab_masked.copy()
-            y_db, x_db = np.where(lab_masked!=label_ignore)
+            y_db, x_db = np.where(lab_masked!=cst.LABEL_IGNORE)
             ##print(y_db.shape)
             #min_y_db, min_x_db = np.min(y_db), np.min(x_db)
             #max_y_db, max_x_db = np.max(y_db), np.max(x_db)
             #lab_rect = lab_filled[min_y_db: max_y_db, min_x_db:max_x_db]
             ##print(lab_rect)
-            #y_db, x_db = np.where(lab_rect!=label_ignore)
+            #y_db, x_db = np.where(lab_rect!=cst.LABEL_IGNORE)
             ##print(y_db.shape)
             #exit(0)
 

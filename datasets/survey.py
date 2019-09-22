@@ -146,7 +146,7 @@ class CMUSurvey(Survey):
         edge_img = cv2.resize(edge_img, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_NEAREST)
         return edge_img
 
-    def get_sem_img(self, idx, pixel_border=1):
+    def get_semantic_img(self, idx, pixel_border=1):
         """Processes and returns the label semantic map for the image at index idx.
 
         Denoise the label segmentation image and resize it by 0.5.
@@ -199,7 +199,7 @@ class SymphonySurvey(Survey):
         return img
 
 
-    def get_sem_img(self, idx):
+    def get_semantic_img(self, idx):
         """Processes and returns the label semantic map for the idx-th image.
 
         Denoise the label segmentation image. The water and vegetation are

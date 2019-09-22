@@ -81,13 +81,15 @@ def bench_random_retrieval_cmu(args, slice_v, cam_v, n_values):
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--trial', type=int, required=True, help="Id of this xp")
+    parser.add_argument('--top_k', type=int, default=20)
+    parser.add_argument('--dist_pos', type=float, required=True)
+    
     parser.add_argument('--img_dir', type=str, required=True)
     parser.add_argument('--seg_dir', type=str, required=True)
     parser.add_argument('--meta_dir', type=str, required=True)
-    parser.add_argument('--dist_pos', type=float, required=True)
+    
     parser.add_argument('--repeat', type=int, required=True, 
             help="Number of time you repeat the random retrieval.")
-    parser.add_argument('--top_k', type=int, default=20)
     args = parser.parse_args()
 
     res_dir = 'res/random/%d'%args.trial
