@@ -17,17 +17,10 @@ from scipy.optimize import linear_sum_assignment
 
 import datasets.survey
 import datasets.retrieval
-from tools import cst, edge_descriptor, semantic_proc, contour_proc
+from tools import cst, edge_descriptor, semantic_proc, contour_proc, metrics
 
-
-#class DesParams(object):
-#    def __init__(self):
-#        self.min_blob_size = 50
-#        self.min_contour_size = 50
-#        self.contour_sample_num = 64
-#        self.top_k = 20
-#        self.trial = 1
-#        self.min_edge_size = 50
+# global variable
+result_l = []
 
 def extract_semantic_edge(params, sem_img):
     """Trial1 on semantic edge extraction."""
@@ -178,7 +171,7 @@ def describe_img_from_survey(args, survey, idx):
     return idx, des_d
 
 
-def collect_restults(result):
+def collect_result(result):
     global result_l
     result_l.append(result)
 
@@ -195,33 +188,42 @@ def get_img_des_parallel(args, survey):
         n_value: values at which you compute recalls.
     """
     pool = mp.Pool(mp.cpu_count())
-    result_l = []
+    # TODO find a pretty way to use global variable
+    global result_l
     for idx in range(survey.get_size()):
-        pool.apply_async(describe_img_from_survey, args=(args, survey, idx))
+        pool.apply_async(describe_img_from_survey, args=(args, survey, idx),
+                callback=collect_result)
     pool.close()
     pool.join()
+    print("get_img_des_parallel: size %d"%len(result_l))
 
     result_l.sort(key=lambda x: x[0])
     des_l = [r for i, r in result_l]
+    result_l = []
     return des_l
 
 
-def retrieve(args, q_img_des, db_img_des_l):
+def retrieve_one(args, q_idx, q_img_des, db_img_des_l):
     """ """
+    #print("retrieve")
     q_label_v = np.array(list(q_img_des.keys()))
     db_size = len(db_img_des_l)
+    #print("retrieve: db_size: %d"%db_size)
     img_distance_v = 1e4*np.ones(db_size)
 
     # compute distances with db imgs
     for db_idx in range(db_size):
+        #print("db_idx: %d"%db_idx)
         db_img_des = db_img_des_l[db_idx] # dict of edge descriptor
 
         # check if db and q images have labels in common
         db_label_v = np.array(list(db_img_des.keys()))
+        #print("retrieve: db_idx: %d"%db_idx, db_label_v)
         matching_label_v = q_label_v[np.in1d(q_label_v, db_label_v)]
         if matching_label_v.size != 0: # yes, they do
             img_distance_v[db_idx] = 0. # init img distance
         else: # no, so let the image distance to 1e4
+            print("boo")
             continue
 
         # image distance
@@ -232,7 +234,7 @@ def retrieve(args, q_img_des, db_img_des_l):
             db_edge_des_l = db_img_des[label]
             
             # compute the distance between all pairs of edges of the same label
-            q_des_v, db_des_v = np.array(q_des_l), np.array(db_des_l)
+            q_des_v, db_des_v = np.array(q_edge_des_l), np.array(db_edge_des_l)
             q_des_v = np.expand_dims(q_des_v, 1)
             db_des_v = np.expand_dims(db_des_v, 0)
             d_des = np.linalg.norm(q_des_v - db_des_v, ord=None, axis=2)
@@ -248,22 +250,38 @@ def retrieve(args, q_img_des, db_img_des_l):
            
     # db image idx from nearest to furthest in descriptor space
     order = np.argsort(img_distance_v)
-    return idx, order
+    #print("retrieve q_idx: %d"%q_idx)
+    return q_idx, order
 
+
+def print_toto(args, idx):
+    #time.sleep(3)
+    #print(idx)
+    print("FUCK_YEAH")
+    return idx, idx
 
 def retrieve_parallel(args, q_img_des_l, db_img_des_l):
     """ """
     q_size = len(q_img_des_l)
     pool = mp.Pool(mp.cpu_count())
-    result_l = []
+    global result_l
+    print("retrieve_parallel: init result_l size: %d"%(len(result_l)))
+    print("q_size: ", q_size)
     for q_idx in range(q_size):
-        pool.apply_async(retrieve, args=(args, q_idx, q_img_des_l[q_idx],
-            db_img_des_l))
+        #print("1. q_idx: %d"%q_idx)
+        q_img_des = q_img_des_l[q_idx]
+        toto = pool.apply_async(retrieve_one, 
+                args=(args, q_idx, q_img_des, db_img_des_l),
+                callback=collect_result)
+        toto.get()
     pool.close()
     pool.join()
-
+    
+    
+    print("len(result_l): %d"%len(result_l))
     result_l.sort(key=lambda x: x[0])
     order_l = [r for i, r in result_l]
+    result_l = []
     return order_l
 
 
@@ -325,7 +343,7 @@ def bench(args, n_values):
             args.survey_id)
     kwargs["meta_fn"] = meta_fn
     q_survey = surveyFactory.create(args.data, **kwargs)
-    
+
     # describe db img
     print('\n** Compute des for database img **')
     db_des_fn = '%s/%d_c%d_db.pickle'%(res_dir, args.slice_id, args.cam_id)
@@ -343,13 +361,28 @@ def bench(args, n_values):
 
     # describe q img
     print('\n** Compute des for query img **')
-    q_img_des_l = get_img_des_parallel(args, q_survey)
+    q_des_fn = '%s/%d_c%d_q.pickle'%(res_dir, args.slice_id, args.cam_id)
+    if not os.path.exists(q_des_fn): # if you did not compute the db already
+        q_img_des_l = get_img_des_parallel(args, q_survey)
+        with open(q_des_fn, 'wb') as f:
+            pickle.dump(q_img_des_l, f)
+    else: # if you already computed it, load it from disk
+        print('\n** Load des for database img **')
+        with open(q_des_fn, 'rb') as f:
+            q_img_des_l = pickle.load(f)
     duration = (time.time() - global_start_time)
     print('END: query descriptors: %d:%02d'%(duration/60, duration%60))
-
+    
+    print("len(q_img_des_l): %d"%len(q_img_des_l))
+    print("len(dbimg_des_l): %d"%len(db_img_des_l))
 
     # retrieve each query
     order_l = retrieve_parallel(args, q_img_des_l, db_img_des_l)
+    print('END: retrieval: %d:%02d'%(duration/60, duration%60))
+    print("len(order_l): %d"%len(order_l))
+    #for order in order_l:
+    #    print(order)
+    #    input('wait')
     
     # compute perf
     retrieval = datasets.retrieval.Retrieval(db_survey, q_survey, args.dist_pos)
@@ -362,7 +395,7 @@ def bench(args, n_values):
     recalls = metrics.recallN(order_l, gt_idx_l, n_values)
 
     duration = (time.time() - global_start_time)
-    print('END: Retrieval\tglobal run time: %d:%02d'%(duration/60, duration%60))
+    print('END: Performance\tglobal run time: %d:%02d'%(duration/60, duration%60))
     
     print("mAP: %.3f"%mAP)
     for i, n in enumerate(n_values):
@@ -397,3 +430,5 @@ if __name__=='__main__':
 
     n_values = [1, 5, 10, 20]
     bench(args, n_values)
+
+
