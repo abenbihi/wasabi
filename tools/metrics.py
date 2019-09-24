@@ -139,12 +139,13 @@ def mAP(rank_l, gt_name_d):
     gt = gt_name_d.copy()
     
     # loop over result lines
-    for query_name,results in parse_results_from_list(rank_l):
+    for query_name, results in parse_results_from_list(rank_l):
+        #print("\n\nquery_name: %s"%query_name)
         if results[0][0] == -1: # failed to match this query
             print('Pop this motherfucker')
             # this query failes
             sum_ap += 0
-            gt_results=gt.pop(query_name) # ground truth
+            gt_results = gt.pop(query_name) # ground truth
             continue
 
         results.sort() # sort results by increasing rank
@@ -152,9 +153,10 @@ def mAP(rank_l, gt_name_d):
         tp_ranks = [] # ranks of true positives (not including the query)
         rank_shift = 0 # apply this shift to ignore null results
         
-        for rank,returned_name in results:
+        for rank, returned_name in results:
+            #input("rank: %d\treturned_name: %s"%(rank, returned_name))
             if returned_name == query_name:
-              rank_shift=-1
+              rank_shift = -1
             elif returned_name in gt_results:
               tp_ranks.append(rank+rank_shift)
         local_ap = score_ap_from_ranks_1(tp_ranks,len(gt_results))

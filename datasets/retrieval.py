@@ -185,7 +185,7 @@ class Retrieval(object):
             # write rank and filenames of matching images outside of the top_k
             missing = np.where(gt_rank>top_k)[0]
             for jj in missing:
-                tmp_l.append("%d"%jj)
+                tmp_l.append("%d"%gt_rank[jj])
                 tmp_l.append("%s"%self.db_survey.fn_v[jj])
             input_mAP_l.append(tmp_l)
         return input_mAP_l
@@ -217,6 +217,7 @@ class Retrieval(object):
             f_out.write('\n')
         f_out.close()
 
+
 def test_show_retrieval():
     """Test retrieval code. Shows matching images."""
     data = "cmu"
@@ -240,6 +241,79 @@ def test_show_retrieval():
         retrieval.show_retrieval()
 
 
+def test_get_retrieval_rank():
+    """Test that I return the correct list of filenames for mAP.
+
+    Given an a query img, the ordered list of retrieved db image idx, I test
+    that I return the top_k db image filenames AND the ground-truth matching db
+    filenames with the correct retrieval rank. Because indices are easy to fuck
+    up.
+    """
+    n_values = [1, 5, 10, 20]
+    data = "cmu"
+    meta_dir = "meta/%s/surveys"%data
+    dist_pos = 5.
+    img_dir = "%s/datasets/Extended-CMU-Seasons/"%cst.WS_DIR
+    seg_dir = "%s/tf/cross-season-segmentation/res/ext_cmu/"%cst.WS_DIR 
+    slice_id, cam_id, survey_id = 22, 0, 0
+
+    surveyFactory = survey.SurveyFactory()
+    meta_fn = "%s/%d/c%d_db.txt"%(meta_dir, slice_id, cam_id)
+    kwargs = {"meta_fn": meta_fn, "img_dir": img_dir, "seg_dir": seg_dir}
+    db_survey = surveyFactory.create("cmu", **kwargs)
+    
+    meta_fn = "%s/%d/c%d_%d.txt"%(meta_dir, slice_id, cam_id, survey_id)
+    kwargs["meta_fn"] = meta_fn
+    q_survey = surveyFactory.create("cmu", **kwargs)
+
+    retrieval = Retrieval(db_survey, q_survey, dist_pos)
+
+    gt_idx_l = retrieval.get_gt_rank("idx")
+    gt_name_d = retrieval.get_gt_rank("name")
+    
+    db_size = db_survey.get_size()
+    print(db_size)
+
+    order_l = []
+    mode = "best"
+    if mode == "worst":
+        for gt_idx in gt_idx_l:
+            a = np.arange(db_size).astype(np.int32)
+            # get all the non-matching db idx first
+            fake_order = a[np.in1d(a, gt_idx, invert=True).nonzero()]
+            # add the matching db idx at the end
+            fake_order = np.hstack((fake_order, gt_idx))
+            order_l.append(fake_order)
+            #print(fake_order)
+            #print(gt_idx)
+            #input('wait')
+    elif mode == "best":
+        for gt_idx in gt_idx_l:
+            a = np.arange(db_size).astype(np.int32)
+            # get all the non-matching db idx first
+            fake_order = a[np.in1d(a, gt_idx, invert=True).nonzero()]
+            # add the matching db idx at the beginning
+            fake_order = np.hstack((gt_idx, fake_order))
+            order_l.append(fake_order)
+
+    rank_l = retrieval.get_retrieval_rank(order_l, top_k=20)
+
+    #f_out = open("trash/rank.txt", 'w')
+    #for l in rank_l:
+    #    #print(l)
+    #    #input('wait')
+    #    f_out.write(" ".join(l))
+    #    f_out.write("\n")
+    #f_out.close()
+    
+    mAP = metrics.mAP(rank_l, gt_name_d)
+    print("mAP: %.3f"%mAP)
+
+    recalls = metrics.recallN(order_l, gt_idx_l, n_values)
+    for i, n in enumerate(n_values):
+        print("Recall@%d: %.3f"%(n, recalls[i]))
+
 if __name__=='__main__':
-    test_show_retrieval()
+    #test_show_retrieval()
+    test_get_retrieval_rank()
 
