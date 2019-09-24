@@ -351,19 +351,22 @@ def bench(args, n_values):
     # retrieve each query
     order_l = retrieve_parallel(args, q_img_des_l, db_img_des_l)
     
+    # compute perf
+    retrieval = datasets.retrieval.Retrieval(db_survey, q_survey, args.dist_pos)
+    rank_l = retrieval.get_retrieval_rank(order_l, args.top_k)
+    
+    gt_name_d = retrieval.get_gt_rank("name")
+    mAP = metrics.mAP(rank_l, gt_name_d)
 
-    ## compute perf
-    #retrieval = datasets.retrieval.Retrieval(db_survey, q_survey, dist_pos)
-    #rank_l = retrieval.get_retrieval_rank(order_l, args.top_k)
-    #gt_name_d = retrieval.get_gt_rank("name")
-    #mAP = metrics.mAP(rank_l, gt_name_d)
-
-    #gt_idx_l = retrieval.get_gt_rank("idx")
-    #recalls = metrics.recallN(order_l, gt_idx_l, n_values)
+    gt_idx_l = retrieval.get_gt_rank("idx")
+    recalls = metrics.recallN(order_l, gt_idx_l, n_values)
 
     duration = (time.time() - global_start_time)
     print('END: Retrieval\tglobal run time: %d:%02d'%(duration/60, duration%60))
-
+    
+    print("mAP: %.3f"%mAP)
+    for i, n in enumerate(n_values):
+        print("Recall@%d: %.3f"%(n, recalls[i]))
     return mAP, recalls
 
 
@@ -394,19 +397,3 @@ if __name__=='__main__':
 
     n_values = [1, 5, 10, 20]
     bench(args, n_values)
-    
-
-    ##sem_curve_asso(slice_id, cam_id, survey_id)
-
-    ##fuck1(args, slice_id, cam_id, survey_id)
-    ##
-    #if args.mode == 'fuse':
-    #    #fuse_part_result(args)
-    #    fuse_result_lake(args)
-    #elif args.mode == 'fuck1':
-    #    fuck1(args, args.slice_id, args.cam_id, args.survey_id)
-    #else:
-    #    print("Error: you came to the wrong mode motherfucker.")
-    #    exit(1)
-    
-
