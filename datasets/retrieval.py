@@ -55,30 +55,30 @@ class Retrieval(object):
         if (aa!=ab) or (aa!=ac) or (ab!=ac):
             raise ValueError("You did not filter out the useless queries correctly.")
     
-    # TODO: is there a better way to export this
-    def get_img_q(self, idx):
-        """Returns idx-th image of query survey."""
-        return self.q_survey.get_img(idx)
+    ## TODO: is there a better way to export this
+    #def get_img_q(self, idx):
+    #    """Returns idx-th image of query survey."""
+    #    return self.q_survey.get_img(idx)
 
-    def get_img_db(self, idx):
-        """Returns idx-th image of database survey."""
-        return self.db_survey.get_img(idx)
+    #def get_img_db(self, idx):
+    #    """Returns idx-th image of database survey."""
+    #    return self.db_survey.get_img(idx)
 
-    def get_semantic_img_q(self, idx):
-        """Returns idx-th image of query survey."""
-        return self.q_survey.get_semantic_img(idx)
+    #def get_semantic_img_q(self, idx):
+    #    """Returns idx-th image of query survey."""
+    #    return self.q_survey.get_semantic_img(idx)
 
-    def get_semantic_img_db(self, idx):
-        """Returns idx-th image of database survey."""
-        return self.db_survey.get_semantic_img(idx)
+    #def get_semantic_img_db(self, idx):
+    #    """Returns idx-th image of database survey."""
+    #    return self.db_survey.get_semantic_img(idx)
 
-    def get_pose_q(self, idx):
-        """Returns idx-th pose of query survey."""
-        return self.q_survey.get_pose(idx)
+    #def get_pose_q(self, idx):
+    #    """Returns idx-th pose of query survey."""
+    #    return self.q_survey.get_pose(idx)
 
-    def get_pose_db(self, idx):
-        """Returns idx-th of database survey."""
-        return self.db_survey.get_pose(idx)
+    #def get_pose_db(self, idx):
+    #    """Returns idx-th of database survey."""
+    #    return self.db_survey.get_pose(idx)
 
     def get_db_size(self):
         return self.db_size
@@ -114,6 +114,7 @@ class Retrieval(object):
             # update query survey
             self.q_survey.update(q_ok)
             self.q_fn_v = self.q_survey.get_fn_v()
+            self.q_pose_v = self.q_survey.get_pose_v()
             self.q_size  = self.q_survey.get_size()
         return self.gt_idx_l
 
