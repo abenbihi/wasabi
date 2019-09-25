@@ -16,7 +16,7 @@ import third_party.tf_land.netvlad.tools.model_netvlad as netvlad
 # weights of model pre-trained on Pittsburg dataset
 
 
-def describe_survey(args, sess, des_op, survey):
+def describe_survey(args, sess, img_op, des_op, survey):
     """Computes netvlad descriptor for all image of provided survey.
     
     Returns:
@@ -31,29 +31,34 @@ def describe_survey(args, sess, des_op, survey):
     survey_size = survey.get_size()
     des_v = np.empty((survey_size, des_dim))
     for idx in range(survey.get_size()):
+        if idx % 50 == 0:
+            print("%d/%d"%(idx, survey.get_size()))
         img = survey.get_img(idx)
         img = cv2.resize(img, (args.w, args.h), interpolation=cv2.INTER_AREA)
         img = (img.astype(np.float32) - mean)/std
         img = np.expand_dims(img, 0)
-        db_des_v[db_idx,:] = sess.run(des_op, feed_dict={img_op: img})
+        des_v[idx,:] = sess.run(des_op, feed_dict={img_op: img})
     return des_v
 
 
-def bench(args, sess, des_op, n_values):
+def bench(args, sess, img_op, des_op, n_values):
     """Runs and evaluate retrieval on all specified slices and surveys."""
-    retrieval_instance_l = [int(l.split("\n")[0]) for l in
+    retrieval_instance_l = [l.split("\n")[0].split() for l in
             open(args.instance).readlines()]
 
     for l in retrieval_instance_l:
         # load db traversal
-        slice_id = l[0]
-        cam_id = l[1]
+        slice_id = int(l[0])
+        cam_id = int(l[1])
         surveyFactory = datasets.survey.SurveyFactory()
-        meta_fn = "%s/%d/c%d_db.txt"%(args.meta_dir, args.slice_id, args.cam_id)
+        meta_fn = "%s/%d/c%d_db.txt"%(args.meta_dir, slice_id, cam_id)
         kwargs = {"meta_fn": meta_fn, "img_dir": args.img_dir, "seg_dir": args.seg_dir}
         db_survey = surveyFactory.create(args.data, **kwargs)
 
         for survey_id in l[2:]:
+            global_start_time = time.time()
+            survey_id = int(survey_id)
+            print("\nSlice %d\tCam %d\tSurvey %d"%(slice_id, cam_id, survey_id))
             # check if this bench already exists
             perf_dir = 'res/netvlad/%d/perf'%args.trial
             mAP_fn = "%s/%d_c%d_%d_mAP.txt"%(perf_dir, slice_id, cam_id,
@@ -61,11 +66,11 @@ def bench(args, sess, des_op, n_values):
             recalls_fn = "%s/%d_c%d_%d_rec.txt"%(perf_dir, slice_id, cam_id,
                 survey_id)
             if os.path.exists(mAP_fn):
-                return -1, -1 
+                continue
 
             # load query traversal
-            meta_fn = "%s/%d/c%d_%d.txt"%(args.meta_dir, args.slice_id, args.cam_id, 
-                    args.survey_id)
+            meta_fn = "%s/%d/c%d_%d.txt"%(args.meta_dir, slice_id, cam_id, 
+                    survey_id)
             kwargs["meta_fn"] = meta_fn
             q_survey = surveyFactory.create(args.data, **kwargs)
 
@@ -73,12 +78,13 @@ def bench(args, sess, des_op, n_values):
             retrieval = datasets.retrieval.Retrieval(db_survey, q_survey, args.dist_pos)
             q_survey = retrieval.get_q_survey()
 
+
             # describe db img
             local_start_time = time.time()
-            db_des_fn = '%s/%d_c%d_db.pickle'%(res_dir, args.slice_id, args.cam_id)
+            db_des_fn = '%s/%d_c%d_db.pickle'%(res_dir, slice_id, cam_id)
             if not os.path.exists(db_des_fn): # if you did not compute the db already
                 print('** Compute des for database img **')
-                db_des_v = describe_survey(args, sess, des_op, db_survey)
+                db_des_v = describe_survey(args, sess, img_op, des_op, db_survey)
                 np.savetxt(db_des_fn, db_des_v)
             else: # if you already computed it, load it from disk
                 print('** Load des for database img **')
@@ -88,15 +94,15 @@ def bench(args, sess, des_op, n_values):
 
             # describe q img
             local_start_time = time.time()
-            q_des_fn = '%s/%d_c%d_%d.pickle'%(res_dir, args.slice_id, args.cam_id,
-                    args.survey_id)
+            q_des_fn = '%s/%d_c%d_%d.pickle'%(res_dir, slice_id, cam_id,
+                    survey_id)
             if not os.path.exists(q_des_fn): # if you did not compute the db already
                 print('\n** Compute des for query img **')
-                q_des_v = describe_survey(args, sess, des_op, q_survey)
+                q_des_v = describe_survey(args, sess, img_op, des_op, q_survey)
                 np.savetxt(q_des_fn, q_des_v)
             else: # if you already computed it, load it from disk
                 print('\n** Load des for query img **')
-                q_des_v = np.loadtxt(db_des_fn)
+                q_des_v = np.loadtxt(q_des_fn)
             duration = (time.time() - local_start_time)
             print('(END) run time: %d:%02d'%(duration/60, duration%60))
 
@@ -106,6 +112,7 @@ def bench(args, sess, des_op, n_values):
             d = np.linalg.norm(np.expand_dims(q_des_v, 1) -
                     np.expand_dims(db_des_v, 0), ord=None, axis=2)
             order = np.argsort(d, axis=1)
+            print(order.shape)
             #np.savetxt(order_fn, order, fmt='%d')
             duration = (time.time() - local_start_time)
             print('(END) run time %d:%02d'%(duration/60, duration%60))
@@ -119,7 +126,7 @@ def bench(args, sess, des_op, n_values):
             mAP = metrics.mAP(rank_l, gt_name_d)
 
             gt_idx_l = retrieval.get_gt_rank("idx")
-            recalls = metrics.recallN(order_l, gt_idx_l, n_values)
+            recalls = metrics.recallN(order, gt_idx_l, n_values)
             
             duration = (time.time() - local_start_time)
             print('(END) run time: %d:%02d'%(duration/60, duration%60))
@@ -133,17 +140,16 @@ def bench(args, sess, des_op, n_values):
             print('Global run time retrieval: %d:%02d'%(duration/60, duration%60))
             
             # write retrieval
-            order_fn = "%s/order_%d_c%d_%d.txt"%(res_dir, args.slice_id, args.cam_id,
-                    args.survey_id)
-            rank_fn = "%s/rank_%d_c%d_%d.txt"%(res_dir, args.slice_id, args.cam_id,
-                    args.survey_id)
-            retrieval.write_retrieval(order_l, args.top_k, order_fn, rank_fn)
+            order_fn = "%s/order_%d_c%d_%d.txt"%(res_dir, slice_id, cam_id,
+                    survey_id)
+            rank_fn = "%s/rank_%d_c%d_%d.txt"%(res_dir, slice_id, cam_id,
+                    survey_id)
+            retrieval.write_retrieval(order, args.top_k, order_fn, rank_fn)
 
             # write perf
             perf_dir = 'res/netvlad/%d/perf'%args.trial
             np.savetxt(recalls_fn, np.array(recalls))
             np.savetxt(mAP_fn, np.array([mAP]))
-            return mAP, recalls
 
 
 def main(args, n_values):
@@ -177,12 +183,12 @@ def main(args, n_values):
 
                 global_step = 0
                 print("Evaluate netvlad from the paper")
-                ckpt = tf.train.get_checkpoint_state(netvlad_dir)
+                ckpt = tf.train.get_checkpoint_state(netvlad_ckpt_dir)
                 if ckpt and ckpt.model_checkpoint_path:
                     print("checkpoint path: ", ckpt.model_checkpoint_path)
                     saver_init.restore(sess, ckpt.model_checkpoint_path)
                 else:
-                    print('No checkpoint file found at: %s'%netvlad_dir)
+                    print('No checkpoint file found at: %s'%netvlad_ckpt_dir)
                     return
                 print('Load model Done')
             else:
@@ -206,7 +212,7 @@ def main(args, n_values):
                     threads.extend(qr.create_threads(sess, coord=coord,
                         daemon=True, start=True))
 
-                bench(args, sess, des_op, n_values)
+                bench(args, sess, img_op, des_op, n_values)
             except Exception as e:  # pylint: disable=broad-except
                 coord.request_stop(e)
             coord.request_stop()

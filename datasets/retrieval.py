@@ -194,7 +194,7 @@ class Retrieval(object):
             missing = np.where(gt_rank>top_k)[0]
             for jj in missing:
                 tmp_l.append("%d"%gt_rank[jj])
-                tmp_l.append("%s"%self.db_survey.fn_v[jj])
+                tmp_l.append("%s"%self.db_survey.fn_v[gt_idx_v[jj]])
             input_mAP_l.append(tmp_l)
         return input_mAP_l
 
