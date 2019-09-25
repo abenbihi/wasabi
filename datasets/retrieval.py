@@ -80,6 +80,14 @@ class Retrieval(object):
     #    """Returns idx-th of database survey."""
     #    return self.db_survey.get_pose(idx)
 
+    def get_q_survey(self):
+        """Returns query survey.
+        
+        Useful when retrieval filters out queryies without ground truth db
+        matching images.
+        """
+        return self.q_survey
+
     def get_db_size(self):
         return self.db_size
 
@@ -205,7 +213,7 @@ class Retrieval(object):
         f_out = open(rank_fn, 'w')
         for i, gt_idx_v in enumerate(self.gt_idx_l):
             order = order_l[i]
-            gt_rank = self.get_order(order, gt_idx_v)
+            gt_rank = metrics.get_order(order, gt_idx_v)
             f_out.write(self.q_survey.fn_v[i])
             # write top_k retrieved images
             for ii,jj in enumerate(order[:top_k]):
@@ -213,7 +221,7 @@ class Retrieval(object):
             # write rank and filenames of matching images outside of the top_k
             missing = np.where(gt_rank>top_k)[0]
             for jj in missing:
-                f_out.write(' %d %s'%(jj, self.db_survey.fn_v[jj]))
+                f_out.write(' %d %s'%(gt_rank[jj], self.db_survey.fn_v[jj]))
             f_out.write('\n')
         f_out.close()
 
@@ -307,7 +315,7 @@ def test_get_retrieval_rank():
     dist_pos = 5.
     img_dir = "%s/datasets/Extended-CMU-Seasons/"%cst.WS_DIR
     seg_dir = "%s/tf/cross-season-segmentation/res/ext_cmu/"%cst.WS_DIR 
-    slice_id, cam_id, survey_id = 22, 0, 0
+    slice_id, cam_id, survey_id = 24, 0, 0
 
     surveyFactory = survey.SurveyFactory()
     meta_fn = "%s/%d/c%d_db.txt"%(meta_dir, slice_id, cam_id)
@@ -327,7 +335,7 @@ def test_get_retrieval_rank():
     print(db_size)
 
     order_l = []
-    mode = "best"
+    mode = "worst"
     if mode == "worst":
         for gt_idx in gt_idx_l:
             a = np.arange(db_size).astype(np.int32)
@@ -350,13 +358,13 @@ def test_get_retrieval_rank():
 
     rank_l = retrieval.get_retrieval_rank(order_l, top_k=20)
 
-    #f_out = open("trash/rank.txt", 'w')
-    #for l in rank_l:
-    #    #print(l)
-    #    #input('wait')
-    #    f_out.write(" ".join(l))
-    #    f_out.write("\n")
-    #f_out.close()
+    f_out = open("trash/rank_%s.txt"%mode, 'w')
+    for l in rank_l:
+        #print(l)
+        #input('wait')
+        f_out.write(" ".join(l))
+        f_out.write("\n")
+    f_out.close()
     
     mAP = metrics.mAP(rank_l, gt_name_d)
     print("mAP: %.3f"%mAP)

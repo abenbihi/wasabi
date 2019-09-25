@@ -15,8 +15,10 @@ from scipy.optimize import linear_sum_assignment
 
 import datasets.survey
 import datasets.retrieval
-from tools import cst, edge_descriptor, semantic_proc, contour_proc, metrics
-import methods.wasabi.retrieve as wasabi_retrieve
+from tools import cst
+from tools import edge_descriptor
+from tools import edge_proc
+from tools import semantic_proc
 
 
 def test(args):
@@ -49,18 +51,18 @@ def test(args):
         # describe q img
         q_img = q_survey.get_img(q_idx)
         q_sem_img = q_survey.get_semantic_img(q_idx)
-        q_sem_edge_d = wasabi_retrieve.extract_semantic_edge(args, q_sem_img)
-        q_img_des_d = wasabi_retrieve.describe_semantic_edge(args, q_sem_edge_d)
-        q_curve_img = wasabi_retrieve.draw_semantic_curves(q_sem_edge_d,
+        q_sem_edge_d = semantic_proc.extract_semantic_edge(args, q_sem_img)
+        q_img_des_d = edge_descriptor.describe_semantic_edge(args, q_sem_edge_d)
+        q_curve_img = edge_proc.draw_semantic_curves(q_sem_edge_d,
                 colors_v, q_sem_img.shape)       
         
         
         # describe db img
         db_img = db_survey.get_img(db_idx)
         db_sem_img = db_survey.get_semantic_img(db_idx)
-        db_sem_edge_d = wasabi_retrieve.extract_semantic_edge(args, db_sem_img)
-        db_img_des_d = wasabi_retrieve.describe_semantic_edge(args, db_sem_edge_d)
-        db_curve_img = wasabi_retrieve.draw_semantic_curves(db_sem_edge_d,
+        db_sem_edge_d = semantic_proc.extract_semantic_edge(args, db_sem_img)
+        db_img_des_d = edge_descriptor.describe_semantic_edge(args, db_sem_edge_d)
+        db_curve_img = edge_proc.draw_semantic_curves(db_sem_edge_d,
                 colors_v, db_sem_img.shape)       
 
         
@@ -87,12 +89,12 @@ def test(args):
             db_edge_l = db_sem_edge_d[label]
 
             # (debug) draw the semantic curves to match
-            q_edge_norm_l, q_patch_l = contour_proc.gen_patches(q_edge_l, 
+            q_edge_norm_l, q_patch_l = edge_proc.gen_patches(q_edge_l, 
                     (200,200,3), colors_v[label])
-            db_edge_norm_l, db_patch_l = contour_proc.gen_patches(db_edge_l, 
+            db_edge_norm_l, db_patch_l = edge_proc.gen_patches(db_edge_l, 
                     (200,200,3), colors_v[label])
-            q_patches = contour_proc.fuse_patches(q_patch_l)
-            db_patches = contour_proc.fuse_patches(db_patch_l)
+            q_patches = edge_proc.fuse_patches(q_patch_l)
+            db_patches = edge_proc.fuse_patches(db_patch_l)
             cv2.imshow('patches q', q_patches)
             cv2.imshow('db_patches', db_patches)
             if (cv2.waitKey(0) & 0xFF) == ord("q"):

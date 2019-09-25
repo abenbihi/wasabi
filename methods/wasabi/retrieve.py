@@ -17,82 +17,82 @@ from scipy.optimize import linear_sum_assignment
 
 import datasets.survey
 import datasets.retrieval
-from tools import cst, edge_descriptor, semantic_proc, contour_proc, metrics
+from tools import cst, edge_descriptor, semantic_proc, edge_proc, metrics
 
 # global variable
 result_l = []
 
-def extract_semantic_edge(params, sem_img):
-    """Trial1 on semantic edge extraction."""
-    debug = (1==1)
-    if debug:
-        colors_v = np.loadtxt('meta/color_mat.txt').astype(np.uint8)
-    
-    # convert semantic img to label img
-    lab_img = semantic_proc.col2lab(sem_img)
-    lab_img_new = semantic_proc.merge_small_blobs(lab_img)
-    if debug:
-        sem_img_new = semantic_proc.lab2col(lab_img_new)
-        cv2.imshow('sem_img_new', sem_img_new)
+#def extract_semantic_edge(params, sem_img):
+#    """Trial1 on semantic edge extraction."""
+#    debug = (1==1)
+#    if debug:
+#        colors_v = np.loadtxt('meta/color_mat.txt').astype(np.uint8)
+#    
+#    # convert semantic img to label img
+#    lab_img = semantic_proc.col2lab(sem_img)
+#    lab_img_new = semantic_proc.merge_small_blobs(lab_img)
+#    if debug:
+#        sem_img_new = semantic_proc.lab2col(lab_img_new)
+#        cv2.imshow('sem_img_new', sem_img_new)
+#
+#    # get semantic contours
+#    label_l = np.unique(lab_img_new)
+#    contours_d = {}
+#    for label in label_l:
+#        l,c = np.where(lab_img_new==label)
+#        mask = np.zeros(lab_img_new.shape).astype(np.uint8)
+#        mask[l,c] = 255
+#        im2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_CCOMP, 
+#                cv2.CHAIN_APPROX_NONE)
+#        # keep only long contours 
+#        big_contours_l = []
+#        for c in contours:
+#            if c.shape[0] > params.min_contour_size:
+#                big_contours_l.append(c)
+#        if len(big_contours_l)>0:
+#            contours_d[label] = np.vstack(big_contours_l)
+#    
+#    ## draw semantic contours
+#    #if debug:
+#    #    debug_img = np.zeros(sem_img.shape, np.uint8)
+#    #    for label, contour in contours_d.items():
+#    #        print('label: %d\t%s'%(label, label_name[label]))
+#    #        contour = np.squeeze(contour)
+#    #        debug_img[contour[:,1], contour[:,0]] = colors_v[label]
+#    #        cv2.imshow('debug_img', debug_img)
+#    #        if (cv2.waitKey(0) & 0xFF ) == ord("q"):
+#    #            exit(0)
+#
+#    # extract connected components from the contour
+#    curves_d = {}
+#    for label, contour in contours_d.items():
+#        curves = edge_proc.contours2curve(params, contour, sem_img)
+#        if curves is not None:
+#            curves_d[label] = curves
+#    
+#    ## draw semantic curves
+#    #if debug:
+#    #    for label, curves_l in curves_d.items():
+#    #        print('Edge label: %d\t%s'%(label, label_name[label]))
+#    #        curve_img = np.zeros(sem_img.shape, np.uint8)
+#    #        for i, curve in enumerate(curves_l):
+#    #            curve_img[curve[:,1], curve[:,0]] = colors_v[label]
+#    #            cv2.imshow('curve_img', curve_img)
+#    #            cv2.waitKey(0)
+#    #    if (cv2.waitKey(0) & 0xFF) == ord("q"):
+#    #        exit(0)
+#
+#    return curves_d
 
-    # get semantic contours
-    label_l = np.unique(lab_img_new)
-    contours_d = {}
-    for label in label_l:
-        l,c = np.where(lab_img_new==label)
-        mask = np.zeros(lab_img_new.shape).astype(np.uint8)
-        mask[l,c] = 255
-        im2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_CCOMP, 
-                cv2.CHAIN_APPROX_NONE)
-        # keep only long contours 
-        big_contours_l = []
-        for c in contours:
-            if c.shape[0] > params.min_contour_size:
-                big_contours_l.append(c)
-        if len(big_contours_l)>0:
-            contours_d[label] = np.vstack(big_contours_l)
-    
-    ## draw semantic contours
-    #if debug:
-    #    debug_img = np.zeros(sem_img.shape, np.uint8)
-    #    for label, contour in contours_d.items():
-    #        print('label: %d\t%s'%(label, label_name[label]))
-    #        contour = np.squeeze(contour)
-    #        debug_img[contour[:,1], contour[:,0]] = colors_v[label]
-    #        cv2.imshow('debug_img', debug_img)
-    #        if (cv2.waitKey(0) & 0xFF ) == ord("q"):
-    #            exit(0)
 
-    # extract connected components from the contour
-    curves_d = {}
-    for label, contour in contours_d.items():
-        curves = contour_proc.contours2curve(params, contour, sem_img)
-        if curves is not None:
-            curves_d[label] = curves
-    
-    ## draw semantic curves
-    #if debug:
-    #    for label, curves_l in curves_d.items():
-    #        print('Edge label: %d\t%s'%(label, label_name[label]))
-    #        curve_img = np.zeros(sem_img.shape, np.uint8)
-    #        for i, curve in enumerate(curves_l):
-    #            curve_img[curve[:,1], curve[:,0]] = colors_v[label]
-    #            cv2.imshow('curve_img', curve_img)
-    #            cv2.waitKey(0)
-    #    if (cv2.waitKey(0) & 0xFF) == ord("q"):
-    #        exit(0)
-
-    return curves_d
-
-
-def describe_semantic_edge(params, curves_d):
-    des_d = {}
-    for label_id, curves_l in curves_d.items():
-        des_d[label_id] = []
-        for c in curves_l:
-            des_d[label_id].append(
-                    edge_descriptor.wavelet_chuang96(params, c, None))
-    return des_d
+#def describe_semantic_edge(params, curves_d):
+#    des_d = {}
+#    for label_id, curves_l in curves_d.items():
+#        des_d[label_id] = []
+#        for c in curves_l:
+#            des_d[label_id].append(
+#                    edge_descriptor.wavelet_chuang96(params, c, None))
+#    return des_d
 
 
 #def describe_img(args, sem_img):
@@ -109,13 +109,13 @@ def describe_semantic_edge(params, curves_d):
 #    return des_d
 
 
-def draw_semantic_curves(curves_d, palette, img_shape):
-    curve_img = 255*np.ones(img_shape, np.uint8)
-    #curve_img = np.zeros(img_shape, np.uint8)
-    for label, curves_l in curves_d.items():
-        for curve in curves_l:
-            curve_img[curve[:,1], curve[:,0]] = palette[label]
-    return curve_img
+#def draw_semantic_curves(curves_d, palette, img_shape):
+#    curve_img = 255*np.ones(img_shape, np.uint8)
+#    #curve_img = np.zeros(img_shape, np.uint8)
+#    for label, curves_l in curves_d.items():
+#        for curve in curves_l:
+#            curve_img[curve[:,1], curve[:,0]] = palette[label]
+#    return curve_img
 
 
 #def get_db_des(args, db_survey, n_values):
@@ -167,8 +167,8 @@ def describe_img_from_survey(args, survey, idx):
         des_d: dict where keys are labels, values are edge descriptors.
     """
     sem_img = survey.get_semantic_img(idx)
-    sem_edge_d = extract_semantic_edge(args, sem_img)
-    des_d = describe_semantic_edge(args, sem_edge_d)
+    sem_edge_d = semantic_proc.extract_semantic_edge(args, sem_img)
+    des_d = edge_descriptor.describe_semantic_edge(args, sem_edge_d)
     return idx, des_d
 
 
@@ -181,8 +181,8 @@ def describe_img(args, sem_img):
     Returns:
         des_d: dict where keys are labels, values are edge descriptors.
     """
-    sem_edge_d = extract_semantic_edge(args, sem_img)
-    des_d = describe_semantic_edge(args, sem_edge_d)
+    sem_edge_d = semantic_proc.extract_semantic_edge(args, sem_img)
+    des_d = edge_descriptor.describe_semantic_edge(args, sem_edge_d)
     return des_d, sem_edge_d
 
 
@@ -208,9 +208,9 @@ def get_img_des_parallel(args, survey):
     for idx in range(survey.get_size()):
         pool.apply_async(describe_img_from_survey, args=(args, survey, idx),
                 callback=collect_result)
+        #toto.get()
     pool.close()
     pool.join()
-    print("get_img_des_parallel: size %d"%len(result_l))
 
     result_l.sort(key=lambda x: x[0])
     des_l = [r for i, r in result_l]
@@ -275,20 +275,19 @@ def print_toto(args, idx):
     print("FUCK_YEAH")
     return idx, idx
 
+
 def retrieve_parallel(args, q_img_des_l, db_img_des_l):
     """ """
     q_size = len(q_img_des_l)
     pool = mp.Pool(mp.cpu_count())
     global result_l
-    print("retrieve_parallel: init result_l size: %d"%(len(result_l)))
-    print("q_size: ", q_size)
     for q_idx in range(q_size):
         #print("1. q_idx: %d"%q_idx)
         q_img_des = q_img_des_l[q_idx]
-        toto = pool.apply_async(retrieve_one, 
+        pool.apply_async(retrieve_one, 
                 args=(args, q_idx, q_img_des, db_img_des_l),
                 callback=collect_result)
-        toto.get()
+        #toto.get()
     pool.close()
     pool.join()
     
@@ -300,42 +299,6 @@ def retrieve_parallel(args, q_img_des_l, db_img_des_l):
     return order_l
 
 
-#def retrieve_img(args, q_survey, idx, db_des_l):
-#    sem_img = q_survey.get_semantic_img(idx)
-#    sem_curves_d = extract_semantic_edge(args, sem_img) # get semantic contours and describe them
-#    q_des_d = describe_semantic_edge(args, sem_curves_d)
-#    q_label_v = np.array(list(q_des_d.keys()))
-#
-#    # compute distances with db imgs
-#    img_distance_v = 1e4*np.ones(db_size)
-#    for db_idx in range(db_size):
-#        db_label_v = np.array(list(db_sem_curves_d.keys()))
-#        matching_label_v = q_label_v[np.in1d(q_label_v, db_label_v)]
-#        if matching_label_v.size != 0:
-#            img_distance_v[db_idx] = 0. # init img distance
-#        else: # no common label between q and db
-#            continue
-#        # image distance
-#        curve_num = 0
-#        for label in matching_label_v:
-#            q_des_l, db_des_l = q_des_d[label], db_des_d[label]
-#            q_des_v, db_des_v = np.array(q_des_l), np.array(db_des_l)
-#            q_des_v = np.expand_dims(q_des_v, 1)
-#            db_des_v = np.expand_dims(db_des_v, 0)
-#            d_des = np.linalg.norm(q_des_v - db_des_v, ord=None, axis=2)
-#            
-#            row_ind, col_ind = linear_sum_assignment(d_des)
-#            img_distance_v[db_idx] += np.sum(d_des[row_ind, col_ind])# /row_ind.shape[0]
-#            #img_distance_v[db_idx] += np.sum(d_des[row_ind, col_ind])
-#            curve_num += row_ind.shape[0]
-#    
-#        if curve_num != 0:
-#            img_distance_v[db_idx] = img_distance_v[db_idx]/float(curve_num)
-#            
-#    order = np.argsort(img_distance_v) # idx of db img from n
-#    return order
-
-
 def bench(args, n_values):
     """Runs retrieval.
 
@@ -345,6 +308,15 @@ def bench(args, n_values):
         n_value: values at which you compute recalls.
     """
     global_start_time = time.time()
+
+    perf_dir = 'res/wasabi/%d/perf'%args.trial
+    mAP_fn = "%s/%d_c%d_%d_mAP.txt"%(perf_dir, args.slice_id, args.cam_id,
+        args.survey_id)
+    recalls_fn = "%s/%d_c%d_%d_rec.txt"%(perf_dir, args.slice_id, args.cam_id,
+        args.survey_id)
+    if os.path.exists(mAP_fn):
+        return -1, -1 
+
     res_dir = "res/wasabi/%d/retrieval/"%args.trial
     
     # load db traversal
@@ -359,8 +331,12 @@ def bench(args, n_values):
     kwargs["meta_fn"] = meta_fn
     q_survey = surveyFactory.create(args.data, **kwargs)
 
+    # retrieval instance
+    retrieval = datasets.retrieval.Retrieval(db_survey, q_survey, args.dist_pos)
+    q_survey = retrieval.get_q_survey()
+
     # describe db img
-    print('\n** Compute des for database img **')
+    print('** Compute des for database img **')
     local_start_time = time.time()
     db_des_fn = '%s/%d_c%d_db.pickle'%(res_dir, args.slice_id, args.cam_id)
     if not os.path.exists(db_des_fn): # if you did not compute the db already
@@ -378,7 +354,8 @@ def bench(args, n_values):
     # describe q img
     print('\n** Compute des for query img **')
     local_start_time = time.time()
-    q_des_fn = '%s/%d_c%d_q.pickle'%(res_dir, args.slice_id, args.cam_id)
+    q_des_fn = '%s/%d_c%d_%d.pickle'%(res_dir, args.slice_id, args.cam_id,
+            args.survey_id)
     if not os.path.exists(q_des_fn): # if you did not compute the db already
         q_img_des_l = get_img_des_parallel(args, q_survey)
         with open(q_des_fn, 'wb') as f:
@@ -402,7 +379,6 @@ def bench(args, n_values):
     # compute perf
     print('\n** Compute performance **')
     local_start_time = time.time()
-    retrieval = datasets.retrieval.Retrieval(db_survey, q_survey, args.dist_pos)
     rank_l = retrieval.get_retrieval_rank(order_l, args.top_k)
     
     gt_name_d = retrieval.get_gt_rank("name")
@@ -421,7 +397,26 @@ def bench(args, n_values):
         print("Recall@%d: %.3f"%(n, recalls[i]))
     duration = (time.time() - global_start_time)
     print('Global run time retrieval: %d:%02d'%(duration/60, duration%60))
+    
+    # write retrieval
+    order_fn = "%s/order_%d_c%d_%d.txt"%(res_dir, args.slice_id, args.cam_id,
+            args.survey_id)
+    rank_fn = "%s/rank_%d_c%d_%d.txt"%(res_dir, args.slice_id, args.cam_id,
+            args.survey_id)
+    retrieval.write_retrieval(order_l, args.top_k, order_fn, rank_fn)
 
+    #rank_fn = "%s/rank_%d_c%d_%d_manual.txt"%(res_dir, args.slice_id, args.cam_id,
+    #        args.survey_id)
+    #f_out = open(rank_fn, 'w')
+    #for l in rank_l:
+    #    f_out.write(" ".join(l))
+    #    f_out.write("\n")
+    #f_out.close()
+    
+    # write perf
+    perf_dir = 'res/wasabi/%d/perf'%args.trial
+    np.savetxt(mAP_fn, np.array([mAP]))
+    np.savetxt(recalls_fn, np.array(recalls))
     return mAP, recalls
 
 
@@ -449,6 +444,10 @@ if __name__=='__main__':
     res_dir = "res/wasabi/%d/retrieval/"%args.trial
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
+
+    perf_dir = "res/wasabi/%d/perf/"%args.trial
+    if not os.path.exists(perf_dir):
+        os.makedirs(perf_dir)
 
     n_values = [1, 5, 10, 20]
     bench(args, n_values)
