@@ -42,8 +42,8 @@ def recallN(order_l, gt_idx_l, n_values):
             ground-truth order of the db img indices from nearest to furthest
             in descriptor space. 
     """
-    print(len(gt_idx_l))
-    print(len(order_l))
+    #print(len(gt_idx_l))
+    #print(len(order_l))
     correct_at_n = np.zeros(len(n_values))
     #TODO can we do this on the matrix in one go?
     for qIx, pred in enumerate(order_l):
