@@ -18,3 +18,12 @@ Script to download slice [6,8] and [22,25]:
 Script to Symphony images:
 
     ./get_symphony.sh
+
+
+# WASABI Results
+
+    ./scripts/wasabi.sh <trial>
+    python -m plots.tab2latex --method wasabi --trial 1 --data cmu_park
+    pdflatex res/wasabi/1/1.tex
+   
+# Paper plots
