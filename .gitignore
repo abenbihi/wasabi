@@ -1,2 +1,8 @@
 *pyc
 __pycache__
+
+*aux
+*log
+*pdf
+perf/
+retrieval/

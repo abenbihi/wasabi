@@ -76,7 +76,7 @@ def bench_random_retrieval_cmu(args, slice_v, cam_v, n_values):
         np.savetxt('%s/%s.txt'%(res_dir, m_name), all_perf[m_name])
         #all_perf[m_name] = np.loadtxt('%s/%s.txt'%(res_dir, m_name))
     latex_fn = "res/random/%d/%d.tex"%(args.trial, args.trial)
-    tab2latex.cmu2latex(latex_fn, all_perf, metrics_name, slice_v, cam_v)
+    tab2latex.perf2latex(latex_fn, all_perf, metrics_name, slice_v, cam_v)
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
