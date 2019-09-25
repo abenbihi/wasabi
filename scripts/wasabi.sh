@@ -31,7 +31,8 @@ slice_id=24
 cam_id=0
 survey_id=0
 
-python3 -m methods.wasabi.retrieve \
+#python3 -m methods.wasabi.retrieve \
+python3 -m methods.wasabi.test_retrieve \
   --trial "$trial" \
   --top_k 20 \
   --img_dir "$img_dir" \

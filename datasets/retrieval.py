@@ -218,6 +218,58 @@ class Retrieval(object):
         f_out.close()
 
 
+    def _gen_game(self, dist_pos=5., dist_non_neg=10.):
+        """Match half the queries with their db, and half with random images.
+        Useful for debug, when you want a human to solve the retrieval problem.
+        """
+        # >0 Get nereast match for each query
+        d = np.linalg.norm(np.expand_dims(self.q_pose_v, 1) -
+                np.expand_dims(self.db_pose_v, 0), ord=None, axis=2)
+        order = np.argsort(d, axis=1)
+        match = order[:,0] # match[i] = idx of the db match for the i-th query
+
+        # <0
+        knn = NearestNeighbors(n_jobs=-1)
+        knn.fit(self.db_pose_v)
+        # for each query, get the list of neighbouring images. These are not
+        # strict negatives pair as there can be some overlap.
+        non_neg_ll = list(knn.radius_neighbors(self.q_pose_v,
+                radius=dist_non_neg, return_distance=False))
+        # Negatives are the complementaire of the neighbouring images.
+        negatives = [] # negatives[i]=array of db idx not matching i-th query
+        for non_neg_l in non_neg_ll:
+            negatives.append(np.setdiff1d(np.arange(self.db_size),
+                non_neg_l, assume_unique=True))
+
+
+        # Define the game: random-split the query set in 2. The first half will
+        # be matched to its gt db img. The others to a random <0 one.
+        
+        # random split
+        matching_num = int(self.q_size/2)
+        random_num = self.q_size - matching_num
+        q_idx_v = np.random.permutation(self.q_size) # order in which you sample query
+        matching_idx = q_idx_v[:matching_num].copy() # img for which you show matching db
+        random_idx = q_idx_v[matching_num:].copy() # img for which you show random <0 db
+        np.random.shuffle(q_idx_v) # reshuffle so that all >0 and all <0 are not sucessive
+        
+        label_v = np.zeros(self.q_size, np.uint8) # set to 1 for query for which you show matching db
+        label_v[matching_idx] = 1
+
+        if np.sum(label_v[random_idx]) != 0:
+            raise ValueError("There are no queries with random matches.")
+        if np.sum(label_v[matching_idx]) != int(self.q_size/2):
+            raise ValueError("Less than half the queries are matched.")
+        
+        db_idx_v = np.zeros(self.q_size, np.int32)
+        db_idx_v[matching_idx] = match[matching_idx]
+        random_idx_neg = np.array([ l[np.random.randint(len(l))] for l in
+            negatives]) # randomly sample a negative for each query
+        db_idx_v[random_idx]= random_idx_neg[random_idx]
+
+        return q_idx_v, db_idx_v, label_v
+
+
 def test_show_retrieval():
     """Test retrieval code. Shows matching images."""
     data = "cmu"
@@ -312,6 +364,7 @@ def test_get_retrieval_rank():
     recalls = metrics.recallN(order_l, gt_idx_l, n_values)
     for i, n in enumerate(n_values):
         print("Recall@%d: %.3f"%(n, recalls[i]))
+
 
 if __name__=='__main__':
     #test_show_retrieval()

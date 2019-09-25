@@ -24,16 +24,16 @@ result_l = []
 
 def extract_semantic_edge(params, sem_img):
     """Trial1 on semantic edge extraction."""
-    debug = (0==1)
+    debug = (1==1)
     if debug:
         colors_v = np.loadtxt('meta/color_mat.txt').astype(np.uint8)
     
     # convert semantic img to label img
     lab_img = semantic_proc.col2lab(sem_img)
     lab_img_new = semantic_proc.merge_small_blobs(lab_img)
-    #if debug:
-    #    sem_img_new = semantic_proc.lab2col(lab_img_new)
-    #    cv2.imshow('sem_img_new', sem_img_new)
+    if debug:
+        sem_img_new = semantic_proc.lab2col(lab_img_new)
+        cv2.imshow('sem_img_new', sem_img_new)
 
     # get semantic contours
     label_l = np.unique(lab_img_new)
@@ -109,13 +109,13 @@ def describe_semantic_edge(params, curves_d):
 #    return des_d
 
 
-#def draw_semantic_curves(curves_d, palette, img_shape):
-#    curve_img = 255*np.ones(img_shape, np.uint8)
-#    #curve_img = np.zeros(img_shape, np.uint8)
-#    for label, curves_l in curves_d.items():
-#        for curve in curves_l:
-#            curve_img[curve[:,1], curve[:,0]] = palette[label]
-#    return curve_img
+def draw_semantic_curves(curves_d, palette, img_shape):
+    curve_img = 255*np.ones(img_shape, np.uint8)
+    #curve_img = np.zeros(img_shape, np.uint8)
+    for label, curves_l in curves_d.items():
+        for curve in curves_l:
+            curve_img[curve[:,1], curve[:,0]] = palette[label]
+    return curve_img
 
 
 #def get_db_des(args, db_survey, n_values):
@@ -160,15 +160,30 @@ def describe_img_from_survey(args, survey, idx):
     """Computes global image descriptor.
 
     Args:
-        sem_img: semantic img
+        survey: traversal.
+        idx: index of the survey image to describe.
 
     Returns:
         des_d: dict where keys are labels, values are edge descriptors.
     """
     sem_img = survey.get_semantic_img(idx)
-    sem_curves_d = extract_semantic_edge(args, sem_img)
-    des_d = describe_semantic_edge(args, sem_curves_d)
+    sem_edge_d = extract_semantic_edge(args, sem_img)
+    des_d = describe_semantic_edge(args, sem_edge_d)
     return idx, des_d
+
+
+def describe_img(args, sem_img):
+    """Computes global image descriptor.
+
+    Args:
+        sem_img: semantic img
+
+    Returns:
+        des_d: dict where keys are labels, values are edge descriptors.
+    """
+    sem_edge_d = extract_semantic_edge(args, sem_img)
+    des_d = describe_semantic_edge(args, sem_edge_d)
+    return des_d, sem_edge_d
 
 
 def collect_result(result):
@@ -223,7 +238,7 @@ def retrieve_one(args, q_idx, q_img_des, db_img_des_l):
         if matching_label_v.size != 0: # yes, they do
             img_distance_v[db_idx] = 0. # init img distance
         else: # no, so let the image distance to 1e4
-            print("boo")
+            #print("boo")
             continue
 
         # image distance
@@ -346,6 +361,7 @@ def bench(args, n_values):
 
     # describe db img
     print('\n** Compute des for database img **')
+    local_start_time = time.time()
     db_des_fn = '%s/%d_c%d_db.pickle'%(res_dir, args.slice_id, args.cam_id)
     if not os.path.exists(db_des_fn): # if you did not compute the db already
         db_img_des_l = get_img_des_parallel(args, db_survey)
@@ -355,12 +371,13 @@ def bench(args, n_values):
         print('\n** Load des for database img **')
         with open(db_des_fn, 'rb') as f:
             db_img_des_l = pickle.load(f)
-    duration = (time.time() - global_start_time)
-    print('END: database descriptors: %d:%02d'%(duration/60, duration%60))
+    duration = (time.time() - local_start_time)
+    print('(END) run time: %d:%02d'%(duration/60, duration%60))
 
 
     # describe q img
     print('\n** Compute des for query img **')
+    local_start_time = time.time()
     q_des_fn = '%s/%d_c%d_q.pickle'%(res_dir, args.slice_id, args.cam_id)
     if not os.path.exists(q_des_fn): # if you did not compute the db already
         q_img_des_l = get_img_des_parallel(args, q_survey)
@@ -370,21 +387,21 @@ def bench(args, n_values):
         print('\n** Load des for database img **')
         with open(q_des_fn, 'rb') as f:
             q_img_des_l = pickle.load(f)
-    duration = (time.time() - global_start_time)
-    print('END: query descriptors: %d:%02d'%(duration/60, duration%60))
+    duration = (time.time() - local_start_time)
+    print('(END) run time: %d:%02d'%(duration/60, duration%60))
     
-    print("len(q_img_des_l): %d"%len(q_img_des_l))
-    print("len(dbimg_des_l): %d"%len(db_img_des_l))
 
     # retrieve each query
+    print('\n** Retrieve query image **')
+    local_start_time = time.time()
     order_l = retrieve_parallel(args, q_img_des_l, db_img_des_l)
-    print('END: retrieval: %d:%02d'%(duration/60, duration%60))
-    print("len(order_l): %d"%len(order_l))
-    #for order in order_l:
-    #    print(order)
-    #    input('wait')
-    
+    duration = (time.time() - local_start_time)
+    print('(END) run time %d:%02d'%(duration/60, duration%60))
+   
+
     # compute perf
+    print('\n** Compute performance **')
+    local_start_time = time.time()
     retrieval = datasets.retrieval.Retrieval(db_survey, q_survey, args.dist_pos)
     rank_l = retrieval.get_retrieval_rank(order_l, args.top_k)
     
@@ -393,13 +410,18 @@ def bench(args, n_values):
 
     gt_idx_l = retrieval.get_gt_rank("idx")
     recalls = metrics.recallN(order_l, gt_idx_l, n_values)
-
-    duration = (time.time() - global_start_time)
-    print('END: Performance\tglobal run time: %d:%02d'%(duration/60, duration%60))
     
-    print("mAP: %.3f"%mAP)
+    duration = (time.time() - local_start_time)
+    print('(END) run time: %d:%02d'%(duration/60, duration%60))
+  
+
+    # log
+    print("\nmAP: %.3f"%mAP)
     for i, n in enumerate(n_values):
         print("Recall@%d: %.3f"%(n, recalls[i]))
+    duration = (time.time() - global_start_time)
+    print('Global run time retrieval: %d:%02d'%(duration/60, duration%60))
+
     return mAP, recalls
 
 
