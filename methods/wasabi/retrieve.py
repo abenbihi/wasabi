@@ -309,6 +309,7 @@ def bench(args, n_values):
     """
     global_start_time = time.time()
 
+    # check if this bench already exists
     perf_dir = 'res/wasabi/%d/perf'%args.trial
     mAP_fn = "%s/%d_c%d_%d_mAP.txt"%(perf_dir, args.slice_id, args.cam_id,
         args.survey_id)
@@ -389,8 +390,8 @@ def bench(args, n_values):
     
     duration = (time.time() - local_start_time)
     print('(END) run time: %d:%02d'%(duration/60, duration%60))
-  
 
+  
     # log
     print("\nmAP: %.3f"%mAP)
     for i, n in enumerate(n_values):
@@ -405,18 +406,10 @@ def bench(args, n_values):
             args.survey_id)
     retrieval.write_retrieval(order_l, args.top_k, order_fn, rank_fn)
 
-    #rank_fn = "%s/rank_%d_c%d_%d_manual.txt"%(res_dir, args.slice_id, args.cam_id,
-    #        args.survey_id)
-    #f_out = open(rank_fn, 'w')
-    #for l in rank_l:
-    #    f_out.write(" ".join(l))
-    #    f_out.write("\n")
-    #f_out.close()
-    
     # write perf
     perf_dir = 'res/wasabi/%d/perf'%args.trial
-    np.savetxt(mAP_fn, np.array([mAP]))
     np.savetxt(recalls_fn, np.array(recalls))
+    np.savetxt(mAP_fn, np.array([mAP]))
     return mAP, recalls
 
 
