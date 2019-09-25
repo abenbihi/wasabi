@@ -206,6 +206,7 @@ def get_img_des_parallel(args, survey):
     # TODO find a pretty way to use global variable
     global result_l
     for idx in range(survey.get_size()):
+        #toto = pool.apply_async(describe_img_from_survey, args=(args, survey, idx),
         pool.apply_async(describe_img_from_survey, args=(args, survey, idx),
                 callback=collect_result)
         #toto.get()
@@ -284,6 +285,7 @@ def retrieve_parallel(args, q_img_des_l, db_img_des_l):
     for q_idx in range(q_size):
         #print("1. q_idx: %d"%q_idx)
         q_img_des = q_img_des_l[q_idx]
+        #toto = pool.apply_async(retrieve_one, 
         pool.apply_async(retrieve_one, 
                 args=(args, q_idx, q_img_des, db_img_des_l),
                 callback=collect_result)
@@ -337,15 +339,15 @@ def bench(args, n_values):
     q_survey = retrieval.get_q_survey()
 
     # describe db img
-    print('** Compute des for database img **')
     local_start_time = time.time()
     db_des_fn = '%s/%d_c%d_db.pickle'%(res_dir, args.slice_id, args.cam_id)
     if not os.path.exists(db_des_fn): # if you did not compute the db already
+        print('** Compute des for database img **')
         db_img_des_l = get_img_des_parallel(args, db_survey)
         with open(db_des_fn, 'wb') as f:
             pickle.dump(db_img_des_l, f)
     else: # if you already computed it, load it from disk
-        print('\n** Load des for database img **')
+        print('** Load des for database img **')
         with open(db_des_fn, 'rb') as f:
             db_img_des_l = pickle.load(f)
     duration = (time.time() - local_start_time)
@@ -353,11 +355,11 @@ def bench(args, n_values):
 
 
     # describe q img
-    print('\n** Compute des for query img **')
     local_start_time = time.time()
     q_des_fn = '%s/%d_c%d_%d.pickle'%(res_dir, args.slice_id, args.cam_id,
             args.survey_id)
     if not os.path.exists(q_des_fn): # if you did not compute the db already
+        print('\n** Compute des for query img **')
         q_img_des_l = get_img_des_parallel(args, q_survey)
         with open(q_des_fn, 'wb') as f:
             pickle.dump(q_img_des_l, f)

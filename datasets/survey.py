@@ -154,17 +154,17 @@ class CMUSurvey(Survey):
         self.check_idx(idx)
 
         # as in icra submission
-        sem_fn = '%s_clean/%s.png'%(os.path.dirname(self.seg_dir),
-                self.fn_v[idx].split(".")[0])
-        if not os.path.exists(sem_fn):
-            sem_fn = '%s/%s.png'%(self.seg_dir, self.fn_v[idx].split(".")[0])
-            if not os.path.exists(sem_fn):
-                raise ValueError("No such file: %s"%sem_fn)
-        
-        # TODO: for better perfs
-        #sem_fn = '%s/%s.png'%(self.seg_dir, self.fn_v[idx].split(".")[0])
+        #sem_fn = '%s_clean/%s.png'%(os.path.dirname(self.seg_dir),
+        #        self.fn_v[idx].split(".")[0])
         #if not os.path.exists(sem_fn):
-        #    raise ValueError("No such file: %s"%sem_fn)
+        #    sem_fn = '%s/%s.png'%(self.seg_dir, self.fn_v[idx].split(".")[0])
+        #    if not os.path.exists(sem_fn):
+        #        raise ValueError("No such file: %s"%sem_fn)
+        
+        ## TODO: for better perfs
+        sem_fn = '%s/%s.png'%(self.seg_dir, self.fn_v[idx].split(".")[0])
+        if not os.path.exists(sem_fn):
+            raise ValueError("No such file: %s"%sem_fn)
 
         #print("%d\t%s"%(idx, sem_fn))
         #if idx > 55:

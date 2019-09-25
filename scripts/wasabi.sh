@@ -31,8 +31,6 @@ slice_id=24
 cam_id=0
 survey_id=0
 
-#python3 -m methods.wasabi.test_retrieve \
-#python3 -m tests.test_describe \
 for slice_id in 22 23 24 25
 do
   for cam_id in 0 1 
@@ -48,6 +46,8 @@ do
       
       echo "\n\n** Slice "$slice_id" Cam "$cam_id" Survey "$survey_id" **"
 
+      #python3 -m methods.wasabi.test_retrieve \
+      #python3 -m tests.test_describe \
       python3 -m methods.wasabi.retrieve \
         --trial "$trial" \
         --top_k 20 \
