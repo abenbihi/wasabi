@@ -228,7 +228,7 @@ class SymphonySurvey(Survey):
         #print('sem_fn: %s'%sem_fn)
         sem_img = cv2.imread(sem_fn, cv2.IMREAD_UNCHANGED)
         sem_img = self.proc_img(sem_img)
-        lab_img = tools_sem.col2lab(sem_img) # color map -> label map
+        lab_img = semantic_proc.col2lab(sem_img) # color map -> label map
         
         # vegetation denoising
         lab_img_new = lab_img.copy()
@@ -240,7 +240,7 @@ class SymphonySurvey(Survey):
         lab_img_new[mask_img==255] = 255
         lab_img_new[lab_img_new==0] = 8
         lab_img_new[lab_img_new==255] = 0
-        sem_img_new = tools_sem.lab2col(lab_img_new)
+        sem_img_new = semantic_proc.lab2col(lab_img_new)
         return sem_img_new
 
 
