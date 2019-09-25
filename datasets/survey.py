@@ -152,10 +152,27 @@ class CMUSurvey(Survey):
         Denoise the label segmentation image and resize it by 0.5.
         """
         self.check_idx(idx)
-        sem_fn = '%s/%s.png'%(self.seg_dir, self.fn_v[idx].split(".")[0])
+
+        # as in icra submission
+        sem_fn = '%s_clean/%s.png'%(os.path.dirname(self.seg_dir),
+                self.fn_v[idx].split(".")[0])
+        if not os.path.exists(sem_fn):
+            sem_fn = '%s/%s.png'%(self.seg_dir, self.fn_v[idx].split(".")[0])
+            if not os.path.exists(sem_fn):
+                raise ValueError("No such file: %s"%sem_fn)
+        
+        # TODO: for better perfs
+        #sem_fn = '%s/%s.png'%(self.seg_dir, self.fn_v[idx].split(".")[0])
+        #if not os.path.exists(sem_fn):
+        #    raise ValueError("No such file: %s"%sem_fn)
+
+        #print("%d\t%s"%(idx, sem_fn))
+        #if idx > 55:
+        #    input('wait')
+
         sem_img = cv2.imread(sem_fn, cv2.IMREAD_UNCHANGED)
         if sem_img.ndim == 2:
-            sem_img = tools_sem.lab2col(sem_img)
+            sem_img = semantic_proc.lab2col(sem_img)
         
         # TODO: clean this
         if sem_img.shape[1] == 1024:

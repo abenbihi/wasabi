@@ -1,59 +1,20 @@
-
+"""Implementation of various edge descriptors."""
 import numpy as np
 import cv2
 import pywt
 
-#def describe_one_img(args, img_fn):
-#
-#    min_blob_size = 1000
-#    min_contour_size = 200
-#
-#    des_l = []
-#    
-#    img = cv2.imread(img_fn)
-#    # cut border because of artefacts
-#    img = img[args.pixel_border:-args.pixel_border, args.pixel_border:-args.pixel_border]
-#
-#    lab = tools_sem.col2lab(img, color_tools.palette_bgr)
-#    cc = tools_sem.extract_connected_components(lab, min_blob_size,
-#            None)
-#
-#    cc_num = np.max(np.unique(cc)) + 1
-#    for j in range(1, cc_num): # 0 are ignore components
-#        cc_j = np.zeros(cc.shape, np.uint8)
-#        cc_j[cc==j] = 255
-#
-#        # TODO: delete zigouigoui
-#
-#        # TODO: delete moving classes
-#        
-#        if args.method == 'zernike':
-#            des = mahotas.features.zernike_moments(cc_j, zernike_radius)
-#        elif args.method == 'hu':
-#            des = cv2.HuMoments(cv2.moments(cc_j)).flatten()
-#        elif args.method == 'fourier':
-#            im2, contours, hierarchy = cv2.findContours(cc_j, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-#            for k,_ in enumerate(contours):
-#                contour = contours[k]
-#                contour_size = contour.shape[0]
-#                if contour_size > min_contour_size:
-#                    sampling = cv2.ximgproc.contourSampling(contour, 100)
-#                    des = cv2.ximgproc.fourierDescriptor(sampling)
-#                #else:
-#                #    print("This contour is a zigouigoui, ignore it")
-#        else:
-#            print("Error: wtf is this descriptor: %s"%args.des)
-#            exit(1)
-#        des_l.append(des)
-#
-#    return np.vstack(des_l)
+
+def describe_semantic_edge(params, curves_d):
+    des_d = {}
+    for label_id, curves_l in curves_d.items():
+        des_d[label_id] = []
+        for c in curves_l:
+            des_d[label_id].append( wavelet_chuang96(params, c, None))
+    return des_d
 
 
-def describe_fourier(cc, min_contour_size):
-    """
-    Connected components
-    """
-    
+def fourier_opencv(cc, min_contour_size):
+    """Edge description using OpenCV implementation of fourier descriptor."""
     des_l = []
     cc_num = np.max(np.unique(cc))
     for i in range(1, cc_num): # 0 are the ignored components
@@ -92,7 +53,6 @@ def describe_fourier(cc, min_contour_size):
                     #stop_show = cv2.waitKey(0) & 0xFF
                     #if stop_show == ord("q"):
                     #    exit(0)
-    
     return des_l
 
 
@@ -119,51 +79,6 @@ def angle_tangeant(z0, z1):
         a = np.arctan2( float(z1[1] - z0[1]) , float(z1[0] - z0[0]) )
     return a
 
-
-#def contour2tangeant(contour, sample_num, contour_img=None):
-#    """
-#    Compute curve representation with the cumulative angle on N points of the
-#    curve. The curve is normalised to have new length l=2pi.
-#    Args:
-#        contour: (N, 1, 2)
-#        sample_num: 
-#        contour_img: img of the contour, for debug
-#    """
-#
-#    # normalise curve parameter 
-#    L = cv2.arcLength(contour, True)
-#    contour_N = contour.shape[0] # num of pts
-#    step = int((contour_N-1) / sample_num)
-#    s = 0
-#    t = lambda x: 2 * np.pi * x / L # reparametrisation
-#    
-#    contour = np.squeeze(contour)
-#    z0 = (contour[0,0], contour[0,1]) # Z(0) (x_o, y_o)
-#
-#
-#    # compute \delta_0 = \theta(0)
-#    z1 = (contour[step, 0], contour[step, 1])
-#    cv2.circle(contour_img, z1, 2, 255, -1, lineType=16)
-#    d0 = angle_tangeant(z0, z1)
-#    if contour_img is not None:
-#        cv2.circle(contour_img, z0, 2, 255, -1, lineType=16)
-#        cv2.line(contour_img, z0, z1, 200, 1, 8, 0)
-#    
-#    #print("\n **Sample phi(t) ** ")
-#    phi_l = []
-#    phi_l.append(d0)
-#    for j in range(2, sample_num+1):
-#        idx = int(step*j)
-#        print('j: %d\tidx: %d'%(j, idx))
-#        #zj = tuple(contour[idx,:])
-#        s = cv2.arcLength(contour[:idx, :], False)
-#        dj = angle_tangeant(contour[idx-1,:], contour[idx,:])
-#        phi_l.append( dj - t(s) )
-#
-#        if contour_img is not None:
-#            cv2.circle(contour_img, tuple(contour[idx,:]), 2, 255, -1, lineType=16)
-#
-#    return np.array(phi_l)
 
 def contour2tangeant(contour, sample_num, contour_img=None):
     """

@@ -1,21 +1,8 @@
-"""
-Extract all_curves from contour.
-"""
+"""Extract all_curves from contour."""
 import os
 
 import cv2
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import linear_sum_assignment
-
-class DesParams(object):
-    def __init__(self):
-        self.min_blob_size = 300
-        self.min_contour_size = 512
-        self.contour_sample_num = 64
-
 
 def contour2patch(contour, patch_shape, color=255):
     """Draw normalised contour on patch."""
@@ -62,9 +49,8 @@ def contour2patch(contour, patch_shape, color=255):
     return contour, patch
 
 
-#def gen_data(contours_l, patch_shape, color=255):
 def gen_patches(contours_l, patch_shape, color=255):
-    """Normalises contours and draws them on individual patches."""
+    """Normalises edge and draws them on individual patches."""
     c_l, c_img_l = [], []
     for contour in contours_l:
         c, c_img = contour2patch(contour, patch_shape, color)
@@ -75,7 +61,7 @@ def gen_patches(contours_l, patch_shape, color=255):
 
 
 def fuse_patches(c_img_l):
-    """Draws contour patches next to each other."""
+    """Draws mosaic of edge from a list of edge imgages."""
     patch_num = len(c_img_l)
     patch_h, patch_w = c_img_l[0].shape[:2]
     out = np.hstack(c_img_l)
@@ -84,28 +70,14 @@ def fuse_patches(c_img_l):
     return out
 
 
-def get_edges(img):
-    """Extracts edged with Canny."""
-    if img.ndim == 3:
-        img_bw = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    else:
-        img_bw = img
-    # edges
-    k = 3
-    blur = cv2.blur(img_bw, (k,k))
-    lowThreshold = 50
-    ratio = 5
-    edges = cv2.Canny(blur, lowThreshold, ratio*lowThreshold, 3)
-    return edges
+def draw_semantic_curves(curves_d, palette, img_shape):
+    curve_img = 255*np.ones(img_shape, np.uint8)
+    #curve_img = np.zeros(img_shape, np.uint8)
+    for label, curves_l in curves_d.items():
+        for curve in curves_l:
+            curve_img[curve[:,1], curve[:,0]] = palette[label]
+    return curve_img
 
-
-def get_edge_density(img):
-    """Computes heatmap of edges."""
-    edges = get_edges(img)
-    # edge density
-    k = 15
-    density = cv2.blur(edges, (k,k))
-    return edges, density
 
 
 def contours2curve(params, contour, q_img):
@@ -247,76 +219,3 @@ def contours2curve(params, contour, q_img):
         sorted_curves_l.append(np.squeeze(contours[contour_idx]))
 
     return sorted_curves_l
-
-
-#def test_contours2curve():
-#    """  """
-#    slice_id, cam_id, survey_id = 24, 0, 1
-#    eps = 5
-#    params = DesParams()
-#
-#    
-#    survey = Survey.Survey(slice_id, cam_id, survey_id)
-#
-#    for q_idx in range(survey.img_num):
-#        q_img = survey.get_img(q_idx)
-#        q_sem_img = survey.get_sem_img(q_idx)
-#        
-#        q_contours_l = tools_sem.gimme_gimme_gimme_a_contour(params, q_sem_img)
-#        
-#        curves_l = []
-#        contour_img = np.zeros(q_img.shape[:2], np.uint8)
-#        for contour in q_contours_l:
-#            cv2.drawContours(contour_img, [contour], 0, 128, 3)
-#            cv2.imshow('contour_img', contour_img)
-#            cv2.waitKey(1)
-#            #skip = cv2.waitKey(0) & 0xFF
-#            #if skip == ord("s"):
-#            #    continue
-#
-#            curves_l += contours2curve(contour, q_img)
-#        
-#        des_l = []
-#        for i, curve in enumerate(curves_l):
-#            des_l.append(tools_des_edge.wavelet_chuang96(params, curve, None))
-#
-#        
-#        plt.figure()
-#        absc = np.arange(2*params.contour_sample_num)
-#        for i, des in enumerate(des_l):
-#            plt.plot(absc, des, label='%d'%i)
-#        plt.legend()
-#        plt.savefig('trash/toto.png')
-#        plt.close()
-#        toto = cv2.imread('trash/toto.png')
-#        cv2.imshow('toto', toto)
-#        cv2.waitKey(1)
-#
-#        
-#        curve_img_d = {}
-#        for i, curve in enumerate(curves_l):
-#            curve_img = np.zeros(q_img.shape[:2], np.uint8)
-#            curve_img[curve[:,1], curve[:,0]] = 255
-#
-#            #im2, contours, hierarchy = cv2.findContours(curve_img,
-#            #        cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-#            ##print(contours)
-#            ## my extraction does not sort the points and this function does
-#            ## I love you opencv
-#            #cv2.drawContours(curve_img, contours, 0, 128, 3) 
-#            
-#            curve_img_d[i] = curve_img
-#            #curve_img[curve[:,1], curve[:,0]] = 255
-#            cv2.imshow('%d curve_img'%i, curve_img)
-#        if (cv2.waitKey(0) & 0xFF) == ord("q"):
-#            exit(0)
-#
-#        
-#        #out = curve_img_d[1] + curve_img_d[3]
-#        #out[out>255] = 128
-#        #cv2.imshow('out', out)
-#        #cv2.waitKey(0)
-#
-#if __name__=='__main__':
-#    test_contours2curve()
-
