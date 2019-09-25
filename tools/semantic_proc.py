@@ -200,4 +200,3 @@ def extract_semantic_edge(params, sem_img):
     #        exit(0)
 
     return curves_d
-
