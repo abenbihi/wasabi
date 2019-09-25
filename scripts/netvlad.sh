@@ -15,14 +15,12 @@ fi
 
 if [ "$#" -eq 0 ]; then
   echo "1. trial"
-  echo "2. slice_id (to bench the finetuning, else -1)"
   exit 0
 fi
 
-if [ "$#" -ne 2 ]; then
+if [ "$#" -ne 1 ]; then
   echo "Error: bad number of arguments"
   echo "1. trial"
-  echo "2. slice_id (to bench the finetuning, else -1)"
   exit 1
 fi
 
@@ -33,7 +31,7 @@ slice_id="$2"
 #  mkdir -p res/"$trial"/log/val/
 #fi
 
-log_dir=res/"$trial"/
+log_dir=res/netvlad/"$trial"/
 if [ -d "$log_dir" ]; then
     while true; do
         read -p ""$log_dir" already exists. Do you want to overwrite it (y/n) ?" yn
@@ -51,6 +49,10 @@ else
 fi
 
 
+netvlad_ckpt_dir=third_party/netvlad/meta/weights/netvlad_tf_open/vd16_pitts30k_conv5_3_vlad_preL2_intra_white
+
+netvlad_dir=third_party/netvlad/
+
 ###############################################################################
 # CMU
 split_dir="$ws_dir"/life_saver/datasets/CMU-Seasons/meta/
@@ -58,7 +60,9 @@ img_dir="$ws_dir"/datasets/Extended-CMU-Seasons/
 
 # evaluate netvlad trained on pittsburg on everyone
 python3 -m methods.netvlad.retrieve \
-  --instance meta/cmu/cmu_park.txt 
+  --instance meta/cmu/cmu_park.txt \
+  --data park \
+  --netvlad_dir "$netvlad_dir" \
   --trial "$trial" \
   --dist_pos 5 \
   --top_k 20 \

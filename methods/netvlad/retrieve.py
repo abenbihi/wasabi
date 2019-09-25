@@ -6,10 +6,14 @@ import numpy as np
 
 import tensorflow as tf
 
+import datasets.survey
+import datasets.retrieval
+from tools import metrics
+
 import third_party.tf_land.netvlad.tools.model_netvlad as netvlad
 
+
 # weights of model pre-trained on Pittsburg dataset
-netvlad_ckpt_dir = 'meta/weights/netvlad_tf_open/vd16_pitts30k_conv5_3_vlad_preL2_intra_white'
 
 
 def describe_survey(args, sess, des_op, survey):
@@ -151,7 +155,9 @@ def main(args, n_values):
 
         # set saver to init netvlad with paper weights
         var_to_init = []
-        var_to_init_name = list(np.loadtxt('meta/var_to_init_netvlad.txt', dtype=str))
+        var_to_init_name = list(np.loadtxt("%s/meta/var_to_init_netvlad.txt"
+            %args.netvlad_dir, dtype=str))
+
         all_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
         for var in all_vars:
             if var.op.name in var_to_init_name:
@@ -167,14 +173,16 @@ def main(args, n_values):
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             if args.no_finetuning == 1: # load model from pittsburg trainng
+                netvlad_ckpt_dir = "%s/meta/weights/netvlad_tf_open/vd16_pitts30k_conv5_3_vlad_preL2_intra_white"%args.netvlad_dir
+
                 global_step = 0
                 print("Evaluate netvlad from the paper")
-                ckpt = tf.train.get_checkpoint_state(netvlad_ckpt_dir)
+                ckpt = tf.train.get_checkpoint_state(netvlad_dir)
                 if ckpt and ckpt.model_checkpoint_path:
                     print("checkpoint path: ", ckpt.model_checkpoint_path)
                     saver_init.restore(sess, ckpt.model_checkpoint_path)
                 else:
-                    print('No checkpoint file found at: %s'%netvlad_ckpt_dir)
+                    print('No checkpoint file found at: %s'%netvlad_dir)
                     return
                 print('Load model Done')
             else:
@@ -211,6 +219,9 @@ if __name__=='__main__':
     parser.add_argument('--dist_pos', type=float, required=True)
     parser.add_argument('--top_k', type=int, default=20)
 
+    parser.add_argument('--data', type=str, required=True, help='{cmu, lake}')
+    parser.add_argument('--instance', type=str, required=True)
+    
     parser.add_argument('--img_dir', type=str, required=True)
     parser.add_argument('--seg_dir', type=str, required=True)
     parser.add_argument('--meta_dir', type=str, required=True)
@@ -223,8 +234,7 @@ if __name__=='__main__':
     parser.add_argument('--moving_average_decay', type=float, default=0.9999, help='')
     parser.add_argument('--no_finetuning', type=int, help='Set to 1 if you start train.')
 
-    # dataset
-    parser.add_argument('--data', type=str, required=True, help='{cmu, lake}')
+    parser.add_argument('--netvlad_dir', type=str)
     args = parser.parse_args()
  
  
