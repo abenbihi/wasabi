@@ -31,42 +31,45 @@ slice_id="$2"
 #  mkdir -p res/"$trial"/log/val/
 #fi
 
-log_dir=res/netvlad/"$trial"/
-if [ -d "$log_dir" ]; then
-    while true; do
-        read -p ""$log_dir" already exists. Do you want to overwrite it (y/n) ?" yn
-        case $yn in
-            [Yy]* ) 
-              #rm -rf "$log_dir"; 
-              mkdir -p "$log_dir";
-              break;;
-            [Nn]* ) exit;;
-            * ) * echo "Please answer yes or no.";;
-        esac
-    done
-else
-  mkdir -p "$log_dir";
-fi
+#log_dir=res/netvlad/"$trial"/
+#if [ -d "$log_dir" ]; then
+#    while true; do
+#        read -p ""$log_dir" already exists. Do you want to overwrite it (y/n) ?" yn
+#        case $yn in
+#            [Yy]* ) 
+#              #rm -rf "$log_dir"; 
+#              mkdir -p "$log_dir"/perf;
+#              mkdir -p "$log_dir"/retrieval;
+#              break;;
+#            [Nn]* ) exit;;
+#            * ) * echo "Please answer yes or no.";;
+#        esac
+#    done
+#else
+#  mkdir -p "$log_dir"/perf;
+#  mkdir -p "$log_dir"/retrieval;
+#fi
 
 
 netvlad_ckpt_dir=third_party/netvlad/meta/weights/netvlad_tf_open/vd16_pitts30k_conv5_3_vlad_preL2_intra_white
 
-netvlad_dir=third_party/netvlad/
+netvlad_dir=third_party/tf_land/netvlad/
 
 ###############################################################################
 # CMU
 split_dir="$ws_dir"/life_saver/datasets/CMU-Seasons/meta/
+meta_dir=meta/cmu/surveys/
 img_dir="$ws_dir"/datasets/Extended-CMU-Seasons/
 
 # evaluate netvlad trained on pittsburg on everyone
 python3 -m methods.netvlad.retrieve \
   --instance meta/cmu/cmu_park.txt \
-  --data park \
+  --data cmu \
   --netvlad_dir "$netvlad_dir" \
   --trial "$trial" \
   --dist_pos 5 \
   --top_k 20 \
-  --mean_fn meta/mean_std.txt \
+  --mean_fn "$netvlad_dir"meta/mean_std.txt \
   --img_dir "$img_dir" \
   --seg_dir "$seg_dir" \
   --meta_dir "$meta_dir" \
