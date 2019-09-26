@@ -402,9 +402,9 @@ def bench(args, n_values):
     print('Global run time retrieval: %d:%02d'%(duration/60, duration%60))
     
     # write retrieval
-    order_fn = "%s/order_%d_c%d_%d.txt"%(res_dir, args.slice_id, args.cam_id,
+    order_fn = "%s/%d_c%d_%d_order.txt"%(res_dir, args.slice_id, args.cam_id,
             args.survey_id)
-    rank_fn = "%s/rank_%d_c%d_%d.txt"%(res_dir, args.slice_id, args.cam_id,
+    rank_fn = "%s/%d_c%d_%d_rank.txt"%(res_dir, args.slice_id, args.cam_id,
             args.survey_id)
     retrieval.write_retrieval(order_l, args.top_k, order_fn, rank_fn)
 

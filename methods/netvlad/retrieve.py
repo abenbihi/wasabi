@@ -18,6 +18,13 @@ import third_party.tf_land.netvlad.tools.model_netvlad as netvlad
 
 def describe_survey(args, sess, img_op, des_op, survey):
     """Computes netvlad descriptor for all image of provided survey.
+
+    Args:
+        args: various user parameters.
+        sess: tf session.
+        img_op: image placeholder.
+        des_op: descriptor operation.
+        survey: Survey object.
     
     Returns:
         des_v: np array (survey_size, descriptor dimension) with one image
@@ -41,8 +48,23 @@ def describe_survey(args, sess, img_op, des_op, survey):
     return des_v
 
 
-def bench(args, sess, img_op, des_op, n_values):
-    """Runs and evaluate retrieval on all specified slices and surveys."""
+def bench(args, kwargs, sess, img_op, des_op, n_values):
+    """Runs and evaluate retrieval on all specified slices and surveys.
+
+        Load surveys, omputes descriptor for all images, runs the retrieval and
+        compute the metrics.
+
+    Args:
+        args: various user parameters.
+        kwargs: params to init survey.
+        sess: tf session.
+        img_op: image placeholder.
+        des_op: descriptor operation.
+        n_values: list of values to compute the recall at.
+    """
+    res_dir = "res/netvlad/%d/retrieval/"%args.trial
+    perf_dir = "res/netvlad/%d/perf/"%args.trial
+    
     retrieval_instance_l = [l.split("\n")[0].split() for l in
             open(args.instance).readlines()]
 
@@ -52,7 +74,8 @@ def bench(args, sess, img_op, des_op, n_values):
         cam_id = int(l[1])
         surveyFactory = datasets.survey.SurveyFactory()
         meta_fn = "%s/%d/c%d_db.txt"%(args.meta_dir, slice_id, cam_id)
-        kwargs = {"meta_fn": meta_fn, "img_dir": args.img_dir, "seg_dir": args.seg_dir}
+        #kwargs = {"meta_fn": meta_fn, "img_dir": args.img_dir, "seg_dir": args.seg_dir}
+        kwargs["meta_fn"] = meta_fn
         db_survey = surveyFactory.create(args.data, **kwargs)
 
         for survey_id in l[2:]:
@@ -112,7 +135,6 @@ def bench(args, sess, img_op, des_op, n_values):
             d = np.linalg.norm(np.expand_dims(q_des_v, 1) -
                     np.expand_dims(db_des_v, 0), ord=None, axis=2)
             order = np.argsort(d, axis=1)
-            print(order.shape)
             #np.savetxt(order_fn, order, fmt='%d')
             duration = (time.time() - local_start_time)
             print('(END) run time %d:%02d'%(duration/60, duration%60))
@@ -140,9 +162,9 @@ def bench(args, sess, img_op, des_op, n_values):
             print('Global run time retrieval: %d:%02d'%(duration/60, duration%60))
             
             # write retrieval
-            order_fn = "%s/order_%d_c%d_%d.txt"%(res_dir, slice_id, cam_id,
+            order_fn = "%s/%d_c%d_%d_order.txt"%(res_dir, slice_id, cam_id,
                     survey_id)
-            rank_fn = "%s/rank_%d_c%d_%d.txt"%(res_dir, slice_id, cam_id,
+            rank_fn = "%s/%d_c%d_%d_rank.txt"%(res_dir, slice_id, cam_id,
                     survey_id)
             retrieval.write_retrieval(order, args.top_k, order_fn, rank_fn)
 
@@ -152,7 +174,7 @@ def bench(args, sess, img_op, des_op, n_values):
             np.savetxt(mAP_fn, np.array([mAP]))
 
 
-def main(args, n_values):
+def main(args, kwargs, n_values):
     """Builds the graph and bench the retrieval."""
     with tf.Graph().as_default():
         # descriptor op
@@ -179,18 +201,16 @@ def main(args, n_values):
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             if args.no_finetuning == 1: # load model from pittsburg trainng
-                netvlad_ckpt_dir = "%s/meta/weights/netvlad_tf_open/vd16_pitts30k_conv5_3_vlad_preL2_intra_white"%args.netvlad_dir
-
                 global_step = 0
                 print("Evaluate netvlad from the paper")
-                ckpt = tf.train.get_checkpoint_state(netvlad_ckpt_dir)
+                ckpt = tf.train.get_checkpoint_state(args.pittsburg_weight)
                 if ckpt and ckpt.model_checkpoint_path:
                     print("checkpoint path: ", ckpt.model_checkpoint_path)
                     saver_init.restore(sess, ckpt.model_checkpoint_path)
                 else:
-                    print('No checkpoint file found at: %s'%netvlad_ckpt_dir)
+                    print("No checkpoint found at %s"%args.pittsburg_weight)
                     return
-                print('Load model Done')
+                print("Load model Done")
             else:
                 print("Evaluate my super finetuned version")
                 train_log_dir = 'res/%d/log/train'%args.trial
@@ -200,7 +220,7 @@ def main(args, n_values):
                     saver.restore(sess, ckpt.model_checkpoint_path)
                     global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
                 else:
-                    print('No checkpoint file found')
+                    print("No checkpoint file found")
                     return
    
             # Start the queue runners.
@@ -212,7 +232,7 @@ def main(args, n_values):
                     threads.extend(qr.create_threads(sess, coord=coord,
                         daemon=True, start=True))
 
-                bench(args, sess, img_op, des_op, n_values)
+                bench(args, kwargs, sess, img_op, des_op, n_values)
             except Exception as e:  # pylint: disable=broad-except
                 coord.request_stop(e)
             coord.request_stop()
@@ -229,7 +249,6 @@ if __name__=='__main__':
     parser.add_argument('--instance', type=str, required=True)
     
     parser.add_argument('--img_dir', type=str, required=True)
-    parser.add_argument('--seg_dir', type=str, required=True)
     parser.add_argument('--meta_dir', type=str, required=True)
 
     parser.add_argument('--mean_fn', type=str, default='', help='Path to mean/std.')
@@ -238,9 +257,11 @@ if __name__=='__main__':
     parser.add_argument('--h', type=int, default=480, help='new height')
     parser.add_argument('--w', type=int, default=704, help='new width')
     parser.add_argument('--moving_average_decay', type=float, default=0.9999, help='')
-    parser.add_argument('--no_finetuning', type=int, help='Set to 1 if you start train.')
 
     parser.add_argument('--netvlad_dir', type=str)
+    parser.add_argument('--pittsburg_weight', type=str)
+    parser.add_argument('--no_finetuning', type=int, 
+            help='Set to 1 to use pittsburg weight.')
     args = parser.parse_args()
  
  
@@ -252,5 +273,13 @@ if __name__=='__main__':
     if not os.path.exists(perf_dir):
         os.makedirs(perf_dir)
 
+    if args.data == "cmu":
+        kwargs = {"img_dir": args.img_dir, "seg_dir": ""}
+    elif args.data == "lake":
+        kwargs = {"img_dir": args.img_dir, "seg_dir": "", 
+                "mask_dir": args.mask_dir}
+    else:
+        raise ValueError("I don't know this dataset: %s"%args.data)
+
     n_values = [1, 5, 10, 20]
-    main(args, n_values)
+    main(args, kwargs, n_values)
