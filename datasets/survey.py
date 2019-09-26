@@ -186,8 +186,7 @@ class CMUSurvey(Survey):
 
  
 class SymphonySurvey(Survey):
-    """Survey implementation for the Symphony dataset.
-    """
+    """Survey implementation for the Symphony dataset."""
     def __init__(self, meta_fn, img_dir, seg_dir, mask_dir):
         """Constructs a Symphony survey.
         
