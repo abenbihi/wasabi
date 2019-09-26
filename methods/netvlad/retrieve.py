@@ -74,7 +74,6 @@ def bench(args, kwargs, sess, img_op, des_op, n_values):
         cam_id = int(l[1])
         surveyFactory = datasets.survey.SurveyFactory()
         meta_fn = "%s/%d/c%d_db.txt"%(args.meta_dir, slice_id, cam_id)
-        #kwargs = {"meta_fn": meta_fn, "img_dir": args.img_dir, "seg_dir": args.seg_dir}
         kwargs["meta_fn"] = meta_fn
         db_survey = surveyFactory.create(args.data, **kwargs)
 
