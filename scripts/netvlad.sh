@@ -62,7 +62,7 @@ img_dir="$ws_dir"/datasets/Extended-CMU-Seasons/
 
 # evaluate netvlad trained on pittsburg on everyone
 python3 -m methods.netvlad.retrieve \
-  --instance meta/cmu/cmu_park_debug.txt \
+  --instance meta/cmu/cmu_park.txt \
   --data cmu \
   --netvlad_dir "$netvlad_dir" \
   --pittsburg_weight "$pittsburg_weight" \

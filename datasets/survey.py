@@ -97,7 +97,7 @@ class Survey(object):
         """       
         raise NotImplementedError('Must be implemented by subclasses')
 
-    def get_img(self, idx):
+    def get_img(self, idx, proc=True):
         """Return the processed image at index idx.
 
         Args:
@@ -107,7 +107,8 @@ class Survey(object):
         img_fn = '%s/%s'%(self.img_dir, self.fn_v[idx])
         #print("img_fn: %s"%img_fn)
         img = cv2.imread(img_fn)
-        img = self.proc_img(img)
+        if proc:
+            img = self.proc_img(img)
         return img
 
     def get_semantic_img(self, idx):
