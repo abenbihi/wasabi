@@ -40,7 +40,7 @@ def describe_survey(args, sess, img_op, des_op, survey):
     for idx in range(survey.get_size()):
         if idx % 50 == 0:
             print("%d/%d"%(idx, survey.get_size()))
-        img = survey.get_img(idx)
+        img = survey.get_img(idx, proc=False)
         img = cv2.resize(img, (args.w, args.h), interpolation=cv2.INTER_AREA)
         img = (img.astype(np.float32) - mean)/std
         img = np.expand_dims(img, 0)
@@ -104,7 +104,7 @@ def bench(args, kwargs, sess, img_op, des_op, n_values):
 
             # describe db img
             local_start_time = time.time()
-            db_des_fn = '%s/%d_c%d_db.pickle'%(res_dir, slice_id, cam_id)
+            db_des_fn = '%s/%d_c%d_db.txt'%(res_dir, slice_id, cam_id)
             if not os.path.exists(db_des_fn): # if you did not compute the db already
                 print('** Compute des for database img **')
                 db_des_v = describe_survey(args, sess, img_op, des_op, db_survey)
@@ -117,7 +117,7 @@ def bench(args, kwargs, sess, img_op, des_op, n_values):
 
             # describe q img
             local_start_time = time.time()
-            q_des_fn = '%s/%d_c%d_%d.pickle'%(res_dir, slice_id, cam_id,
+            q_des_fn = '%s/%d_c%d_%d.txt'%(res_dir, slice_id, cam_id,
                     survey_id)
             if not os.path.exists(q_des_fn): # if you did not compute the db already
                 print('\n** Compute des for query img **')
