@@ -208,6 +208,37 @@ def lf2vlad(lf, centroids, vlad_norm):
     return v
 
 
+def lf2bow(lf, centroids, vlad_norm):
+    """
+    Computes bow descriptors from the local features.
+    Args:
+        lf: (N, D) np array. N Local Features of dimension D.
+        centroids: (NW, DW) np array. NW visual words of dimension DW.
+    """
+    NW, DW = centroids.shape[:2]
+    N, D = lf.shape[:2] # dimension of local img feature
+    if DW != D:
+        raise ValueError("Error: D != DW."
+                "Local descriptor dim is different than the visual word's one.")
+
+    c = np.expand_dims(centroids, 1) # row
+    x = np.expand_dims(lf, 0) # col
+    
+    # cluster assignment
+    d = np.linalg.norm(c - x, ord=None, axis=2) # distance between clusters and des
+    x2c = np.argmin(d, axis=0) # x2c[j] = cluster of j-th descriptor
+
+    #create histogram
+    unique, counts = np.unique(x2c, return_counts=True)
+    hist = np.zeros(NW)
+    hist[unique] = counts
+    
+    # normalisation
+    v = normalise_vlad(hist, vlad_norm)
+
+    return v
+
+
 def describe_img(args, fe, img):
     """Computes a global descriptor for the image.
 
@@ -218,16 +249,26 @@ def describe_img(args, fe, img):
     if args.agg_mode == "vlad":
         des = lf2vlad(lf, centroids, args.vlad_norm)
     elif args.agg_mode == "bow":
-        des = lf2bow(lf, centroids, args.bow_norm)
+        des = lf2bow(lf, centroids, args.vlad_norm)
     else:
         raise ValueError("Unknown aggregation mode: %s"%args.agg_mode)
     return des
+
+def get_img_des_dim(nw, dw, agg_mode):
+    """Returns the global image descriptor dimension."""
+    if agg_mode == "vlad":
+        des_dim = nw * dw # global img descriptor dimension
+    elif agg_mode == "bow":
+        des_dim = nw
+    else:
+        raise ValueError("Unknown aggregation mode: %s"%args.agg_mode)
+    return des_dim
 
 
 def describe_survey(args, fe, centroids, survey):
     """ """
     NW, DW = centroids.shape[:2] # Number of Words, Dim of Words
-    des_dim = NW * DW # global img descriptor dimension
+    des_dim = get_img_des_dim(NW, DW, args.agg_mode)
     survey_size = survey.get_size()
     des_v = np.empty((survey_size, des_dim))
     for idx in range(survey.get_size()):

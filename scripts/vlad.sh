@@ -73,7 +73,7 @@ do
         --top_k "$top_k" \
         --lf_mode sift \
         --max_num_feat "$max_num_feat" \
-        --agg_mode vlad \
+        --agg_mode bow \
         --centroids flickr100k \
         --vlad_norm ssr \
         --data cmu \
