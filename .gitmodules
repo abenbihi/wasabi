@@ -1,3 +1,6 @@
 [submodule "third_party/tf_land"]
 	path = third_party/tf_land
 	url = https://gitlab.georgiatech-metz.fr/paper/tf_land.git
+[submodule "third_party/models"]
+	path = third_party/models
+	url = https://github.com/tensorflow/models.git
