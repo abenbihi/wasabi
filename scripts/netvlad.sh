@@ -77,7 +77,7 @@ python3 -m methods.netvlad.retrieve \
   --h 384 \
   --w 512 \
   --no_finetuning 1 \
-  --moving_average_decay 0.9999 \
+  --moving_average_decay 0.9999
 
 
 
