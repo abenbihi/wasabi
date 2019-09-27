@@ -56,7 +56,8 @@ if [ -d "$out_dir" ]; then
         esac
     done
 else
-    mkdir -p "$out_dir"
+    mkdir -p "$out_dir"/retrieval
+    mkdir -p "$out_dir"/perf
 fi
 
 img_dir="$WS_DIR"datasets/Extended-CMU-Seasons/

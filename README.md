@@ -62,8 +62,60 @@ With codebook finetuned on lake
 
 # DELF results
 
+## Install DELF
+
+```
+git submodule update --init third_party/models
+```
+
+Here is a variation of the delf installation guidelines. The only variations concerns the paths.
+
+### Protobuf
+Follow
+[https://github.com/tensorflow/models/blob/master/research/delf/INSTALL_INSTRUCTIONS.md#protobuf](this
+link).
+
+### `tensorflow/models`
+
+``` bash
+# First, install slim's "nets" package.
+cd third_party/models/research/slim/
+pip3 install -e .
+```
+
+Then, compile DELF's protobufs. Use `PATH_TO_PROTOC` as the directory where you
+downloaded the `protoc` compiler.
+
+```bash
+# From third_party/models/research/delf/
+${PATH_TO_PROTOC?}/bin/protoc delf/protos/*.proto --python_out=.
+```
+
+Finally, install the DELF package.
+
+```bash
+# From third_party/models/research/delf/
+pip3 install -e . # Install "delf" package.
+```
+
+Update your python paths:
+```bash
+export PYTHONPATH=$PYTHONPATH:<full path to>/third_party/models/research:<full path to>/third_party/models/research/slim
+```
+
+At this point, running
+
+```bash
+python3 -c 'import delf'
+```
+
+should just return without complaints. This indicates that the DELF package is
+loaded successfully.
+
+
 ## Convert DELF codebooks from tf to np format
 
+``` bash
     cd meta/words/delf
     ./get_words.sh
     ./convert_words.sh
@@ -72,5 +124,10 @@ With codebook finetuned on lake
     python3 methods/delf/codebook_tf2np.py \
         --ckpt_dir meta/words/delf/roxford5k_codebook_65536/k65536_codebook_tfckpt/ \
         --out meta/words/delf/oxford5k_65536.txt
+```
+
+## Retrieval
+```
+./scripts/delf.sh
 
 # Paper plots

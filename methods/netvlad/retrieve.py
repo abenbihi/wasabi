@@ -276,7 +276,7 @@ if __name__=='__main__':
         kwargs = {"img_dir": args.img_dir, "seg_dir": ""}
     elif args.data == "lake":
         kwargs = {"img_dir": args.img_dir, "seg_dir": "", 
-                "mask_dir": args.mask_dir}
+                "mask_dir": ""}
     else:
         raise ValueError("I don't know this dataset: %s"%args.data)
 

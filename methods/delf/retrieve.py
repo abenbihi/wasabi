@@ -2,6 +2,20 @@
 
 Variation of delf/examples/extract_features.py
 """
+import os, argparse, time
+
+import cv2
+import numpy as np
+
+import tensorflow as tf
+
+import datasets.survey
+import datasets.retrieval
+from tools import metrics, tools_agg
+
+from google.protobuf import text_format
+from delf import delf_config_pb2
+from delf import extractor
 
 
 def describe_img(args, sess, extractor_fn, centroids, img):
@@ -20,12 +34,12 @@ def describe_img(args, sess, extractor_fn, centroids, img):
     """
     (locations_out, descriptors_out, feature_scales_out,
             attention_out) = extractor_fn(im)
-    des = lf2vlad(descriptors_out, centroids, args.vlad_norm)
+    des = tools_agg.lf2vlad(descriptors_out, centroids, args.vlad_norm)
     return des
 
 
 def describe_survey(args, sess, extractor_fn, centroids, survey):
-    """Computes netvlad descriptor for all image of provided survey.
+    """Computes delf descriptor for all image of provided survey.
 
     Args:
         args: various user parameters.
@@ -50,7 +64,7 @@ def describe_survey(args, sess, extractor_fn, centroids, survey):
     return des_v
 
 
-def bench(args, kwargs, sess, extractor_fn, n_values):
+def bench(args, kwargs, sess, extractor_fn, centroids, n_values):
     """Runs and evaluate retrieval on all specified slices and surveys.
         Load surveys, computes descriptor for all images, runs the retrieval and
         compute the metrics.
@@ -63,8 +77,8 @@ def bench(args, kwargs, sess, extractor_fn, n_values):
         des_op: descriptor operation.
         n_values: list of values to compute the recall at.
     """
-    res_dir = "res/netvlad/%d/retrieval/"%args.trial
-    perf_dir = "res/netvlad/%d/perf/"%args.trial
+    res_dir = "res/delf/%d/retrieval/"%args.trial
+    perf_dir = "res/delf/%d/perf/"%args.trial
     
     retrieval_instance_l = [l.split("\n")[0].split() for l in
             open(args.instance).readlines()]
@@ -75,7 +89,6 @@ def bench(args, kwargs, sess, extractor_fn, n_values):
         cam_id = int(l[1])
         surveyFactory = datasets.survey.SurveyFactory()
         meta_fn = "%s/%d/c%d_db.txt"%(args.meta_dir, slice_id, cam_id)
-        #kwargs = {"meta_fn": meta_fn, "img_dir": args.img_dir, "seg_dir": args.seg_dir}
         kwargs["meta_fn"] = meta_fn
         db_survey = surveyFactory.create(args.data, **kwargs)
 
@@ -84,7 +97,7 @@ def bench(args, kwargs, sess, extractor_fn, n_values):
             survey_id = int(survey_id)
             print("\nSlice %d\tCam %d\tSurvey %d"%(slice_id, cam_id, survey_id))
             # check if this bench already exists
-            perf_dir = 'res/netvlad/%d/perf'%args.trial
+            perf_dir = 'res/delf/%d/perf'%args.trial
             mAP_fn = "%s/%d_c%d_%d_mAP.txt"%(perf_dir, slice_id, cam_id,
                 survey_id)
             recalls_fn = "%s/%d_c%d_%d_rec.txt"%(perf_dir, slice_id, cam_id,
@@ -172,25 +185,19 @@ def bench(args, kwargs, sess, extractor_fn, n_values):
             retrieval.write_retrieval(order, args.top_k, order_fn, rank_fn)
 
             # write perf
-            perf_dir = 'res/netvlad/%d/perf'%args.trial
+            perf_dir = 'res/delf/%d/perf'%args.trial
             np.savetxt(recalls_fn, np.array(recalls))
             np.savetxt(mAP_fn, np.array([mAP]))
 
-def main():
+def main(args, kwargs, centroids, n_values):
     """Generates graph."""
     # Parse DelfConfig proto.
     config = delf_config_pb2.DelfConfig()
-    with tf.gfile.FastGFile(cmd_args.config_path, 'r') as f:
+    with tf.gfile.FastGFile(args.config_path, 'r') as f:
         text_format.Merge(f.read(), config)
 
     # Tell TensorFlow that the model will be built into the default Graph.
     with tf.Graph().as_default():
-        ## Reading list of images.
-        #filename_queue = tf.train.string_input_producer(fn_v, shuffle=False)
-        #reader = tf.WholeFileReader()
-        #_, value = reader.read(filename_queue)
-        #image_tf = tf.image.decode_jpeg(value, channels=3)
-
         with tf.Session() as sess:
             init_op = tf.global_variables_initializer()
             sess.run(init_op)
@@ -201,4 +208,49 @@ def main():
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
             
-            bench(args, kwargs, sess, extractor_fn, n_values)
+            bench(args, kwargs, sess, extractor_fn, centroids, n_values)
+
+
+if __name__=='__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--trial', type=int, required=True, help='Trial.')
+    parser.add_argument('--dist_pos', type=float, required=True)
+    parser.add_argument('--top_k', type=int, default=20)
+
+    parser.add_argument('--data', type=str, required=True, help='{cmu, lake}')
+    parser.add_argument('--instance', type=str, required=True)
+    parser.add_argument('--centroids', type=str)
+    
+    parser.add_argument('--img_dir', type=str, required=True)
+    parser.add_argument('--meta_dir', type=str, required=True)
+
+    parser.add_argument('--config_path', type=str,
+        default='delf_config_example.pbtxt',
+        help="""
+        Path to DelfConfig proto text file with configuration to be used for DELF
+        extraction.
+        """)
+    args = parser.parse_args()
+ 
+    res_dir = "res/delf/%d/retrieval/"%args.trial
+    if not os.path.exists(res_dir):
+        os.makedirs(res_dir)
+
+    perf_dir = "res/delf/%d/perf/"%args.trial
+    if not os.path.exists(perf_dir):
+        os.makedirs(perf_dir)
+
+    if args.data == "cmu":
+        kwargs = {"img_dir": args.img_dir, "seg_dir": ""}
+    elif args.data == "lake":
+        kwargs = {"img_dir": args.img_dir, "seg_dir": "", 
+                "mask_dir": ""}
+    else:
+        raise ValueError("I don't know this dataset: %s"%args.data)
+
+    n_values = [1, 5, 10, 20]
+
+    codebook = tools_agg.Codebook()
+    centroids = np.loadtxt(args.centroids)
+    main(args, kwargs, centroids, n_values)
+
