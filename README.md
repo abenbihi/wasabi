@@ -60,4 +60,17 @@ With codebook finetuned on cmu park
 With codebook finetuned on lake
 
 
+# DELF results
+
+## Convert DELF codebooks from tf to np format
+
+    cd meta/words/delf
+    ./get_words.sh
+    ./convert_words.sh
+
+    cd "$WASABI_DIR"
+    python3 methods/delf/codebook_tf2np.py \
+        --ckpt_dir meta/words/delf/roxford5k_codebook_65536/k65536_codebook_tfckpt/ \
+        --out meta/words/delf/oxford5k_65536.txt
+
 # Paper plots
