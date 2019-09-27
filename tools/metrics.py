@@ -144,7 +144,7 @@ def mAP(rank_l, gt_name_d):
     for query_name, results in parse_results_from_list(rank_l):
         #print("\n\nquery_name: %s"%query_name)
         if results[0][0] == -1: # failed to match this query
-            print('Pop this motherfucker')
+            print('Pop this')
             # this query failes
             sum_ap += 0
             gt_results = gt.pop(query_name) # ground truth

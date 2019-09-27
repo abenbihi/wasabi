@@ -306,7 +306,7 @@ def test_get_retrieval_rank():
 
     Given an a query img, the ordered list of retrieved db image idx, I test
     that I return the top_k db image filenames AND the ground-truth matching db
-    filenames with the correct retrieval rank. Because indices are easy to fuck
+    filenames with the correct retrieval rank. Because indices are easy to mess
     up.
     """
     n_values = [1, 5, 10, 20]

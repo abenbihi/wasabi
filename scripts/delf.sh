@@ -64,7 +64,8 @@ python3 -m methods.delf.retrieve \
   --data cmu \
   --instance meta/cmu/cmu_park_debug.txt \
   --centroids "$centroids" \
+  --vlad_norm ssr \
   --img_dir "$img_dir" \
   --meta_dir "$meta_dir" \
-  --config_path meta/delf_config_example.pbtxt
+  --config_path meta/delf_model/delf_config_example.pbtxt
 
