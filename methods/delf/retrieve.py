@@ -1,4 +1,7 @@
-"""Evaluate NetVLAD on CMU-Seasons and Symphony image retrieval."""
+"""Evaluates DELF on CMU-Seasons and Symphony image retrieval.
+
+Variation of delf/examples/extract_features.py
+"""
 import os, argparse, time
 
 import cv2
@@ -8,50 +11,62 @@ import tensorflow as tf
 
 import datasets.survey
 import datasets.retrieval
-from tools import metrics
+from tools import metrics, tools_agg
 
-import third_party.tf_land.netvlad.tools.model_netvlad as netvlad
+from google.protobuf import text_format
+from delf import delf_config_pb2
+from delf import extractor
 
 
-# weights of model pre-trained on Pittsburg dataset
+def describe_img(args, sess, extractor_fn, centroids, img):
+    """Computes DELF local features and VLAD-aggregates them.
+
+    Args:
+        args: 
+        sess:
+        extractor_fn: DELF local features extractor.
+        centroids: (NW, DW) np array. NW: Number of visual Words. DW: Dimension
+            of visual Words.
+        img: (h,w,3) image to describe.
+    
+    Returns:
+        des: global img descriptor of dimension NW*DW.
+    """
+    (locations_out, descriptors_out, feature_scales_out,
+            attention_out) = extractor_fn(im)
+    des = tools_agg.lf2vlad(descriptors_out, centroids, args.vlad_norm)
+    return des
 
 
-def describe_survey(args, sess, img_op, des_op, survey):
-    """Computes netvlad descriptor for all image of provided survey.
+def describe_survey(args, sess, extractor_fn, centroids, survey):
+    """Computes delf descriptor for all image of provided survey.
 
     Args:
         args: various user parameters.
         sess: tf session.
-        img_op: image placeholder.
-        des_op: descriptor operation.
+        extractor_fn: DELF local features extractor.
+        centroids: (NW, DW) np array. NW: Number of visual Words. DW: Dimension
+            of visual Words.
         survey: Survey object.
     
     Returns:
-        des_v: np array (survey_size, descriptor dimension) with one image
-            descriptor per line.
+        des_v: np array (survey_size,NW*DW) with one image descriptor per line.
     """
-    mean_std = np.loadtxt(args.mean_fn)
-    mean = mean_std[0,:]*255.
-    std = mean_std[1,:]*255.
-
-    des_dim = des_op.get_shape().as_list()[-1]
+    NW, DW = centroids.shape[:2] # Number of Words, Dim of Words
+    des_dim = NW * DW
     survey_size = survey.get_size()
     des_v = np.empty((survey_size, des_dim))
     for idx in range(survey.get_size()):
         if idx % 50 == 0:
             print("%d/%d"%(idx, survey.get_size()))
         img = survey.get_img(idx, proc=False)
-        img = cv2.resize(img, (args.w, args.h), interpolation=cv2.INTER_AREA)
-        img = (img.astype(np.float32) - mean)/std
-        img = np.expand_dims(img, 0)
-        des_v[idx,:] = sess.run(des_op, feed_dict={img_op: img})
+        des_v[idx,:] = describe_img(args, sess, extractor_fn, centroids, img)
     return des_v
 
 
-def bench(args, kwargs, sess, img_op, des_op, n_values):
+def bench(args, kwargs, sess, extractor_fn, centroids, n_values):
     """Runs and evaluate retrieval on all specified slices and surveys.
-
-        Load surveys, omputes descriptor for all images, runs the retrieval and
+        Load surveys, computes descriptor for all images, runs the retrieval and
         compute the metrics.
 
     Args:
@@ -62,8 +77,8 @@ def bench(args, kwargs, sess, img_op, des_op, n_values):
         des_op: descriptor operation.
         n_values: list of values to compute the recall at.
     """
-    res_dir = "res/netvlad/%d/retrieval/"%args.trial
-    perf_dir = "res/netvlad/%d/perf/"%args.trial
+    res_dir = "res/delf/%d/retrieval/"%args.trial
+    perf_dir = "res/delf/%d/perf/"%args.trial
     
     retrieval_instance_l = [l.split("\n")[0].split() for l in
             open(args.instance).readlines()]
@@ -82,7 +97,7 @@ def bench(args, kwargs, sess, img_op, des_op, n_values):
             survey_id = int(survey_id)
             print("\nSlice %d\tCam %d\tSurvey %d"%(slice_id, cam_id, survey_id))
             # check if this bench already exists
-            perf_dir = 'res/netvlad/%d/perf'%args.trial
+            perf_dir = 'res/delf/%d/perf'%args.trial
             mAP_fn = "%s/%d_c%d_%d_mAP.txt"%(perf_dir, slice_id, cam_id,
                 survey_id)
             recalls_fn = "%s/%d_c%d_%d_rec.txt"%(perf_dir, slice_id, cam_id,
@@ -106,7 +121,8 @@ def bench(args, kwargs, sess, img_op, des_op, n_values):
             db_des_fn = '%s/%d_c%d_db.txt'%(res_dir, slice_id, cam_id)
             if not os.path.exists(db_des_fn): # if you did not compute the db already
                 print('** Compute des for database img **')
-                db_des_v = describe_survey(args, sess, img_op, des_op, db_survey)
+                db_des_v = describe_survey(args, sess, extractor_fn, centroids,
+                        db_survey)
                 np.savetxt(db_des_fn, db_des_v)
             else: # if you already computed it, load it from disk
                 print('** Load des for database img **')
@@ -120,7 +136,8 @@ def bench(args, kwargs, sess, img_op, des_op, n_values):
                     survey_id)
             if not os.path.exists(q_des_fn): # if you did not compute the db already
                 print('\n** Compute des for query img **')
-                q_des_v = describe_survey(args, sess, img_op, des_op, q_survey)
+                q_des_v = describe_survey(args, sess, extractor_fn, centroids,
+                        q_survey)
                 np.savetxt(q_des_fn, q_des_v)
             else: # if you already computed it, load it from disk
                 print('\n** Load des for query img **')
@@ -168,74 +185,30 @@ def bench(args, kwargs, sess, img_op, des_op, n_values):
             retrieval.write_retrieval(order, args.top_k, order_fn, rank_fn)
 
             # write perf
-            perf_dir = 'res/netvlad/%d/perf'%args.trial
+            perf_dir = 'res/delf/%d/perf'%args.trial
             np.savetxt(recalls_fn, np.array(recalls))
             np.savetxt(mAP_fn, np.array([mAP]))
 
+def main(args, kwargs, centroids, n_values):
+    """Generates graph."""
+    # Parse DelfConfig proto.
+    config = delf_config_pb2.DelfConfig()
+    with tf.gfile.FastGFile(args.config_path, 'r') as f:
+        text_format.Merge(f.read(), config)
 
-def main(args, kwargs, n_values):
-    """Builds the graph and bench the retrieval."""
+    # Tell TensorFlow that the model will be built into the default Graph.
     with tf.Graph().as_default():
-        # descriptor op
-        img_op = tf.placeholder(dtype=tf.float32, shape=[1, args.h, args.w, 3])
-        des_op = netvlad.vgg16NetvladPca(img_op)
-
-        # set saver to init netvlad with paper weights
-        var_to_init = []
-        var_to_init_name = list(np.loadtxt("%s/meta/var_to_init_netvlad.txt"
-            %args.netvlad_dir, dtype=str))
-
-        all_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-        for var in all_vars:
-            if var.op.name in var_to_init_name:
-                var_to_init.append(var)
-        saver_init = tf.train.Saver(var_to_init)
-        
-        # Set saver to restore finetuned network 
-        variable_averages = tf.train.ExponentialMovingAverage(args.moving_average_decay)
-        variables_to_restore = variable_averages.variables_to_restore()
-        saver = tf.train.Saver(variables_to_restore)
-
-        # Restore vars
         with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            if args.no_finetuning == 1: # load model from pittsburg trainng
-                global_step = 0
-                print("Evaluate netvlad from the paper")
-                ckpt = tf.train.get_checkpoint_state(args.pittsburg_weight)
-                if ckpt and ckpt.model_checkpoint_path:
-                    print("checkpoint path: ", ckpt.model_checkpoint_path)
-                    saver_init.restore(sess, ckpt.model_checkpoint_path)
-                else:
-                    print("No checkpoint found at %s"%args.pittsburg_weight)
-                    return
-                print("Load model Done")
-            else:
-                print("Evaluate my super finetuned version")
-                train_log_dir = 'res/%d/log/train'%args.trial
-                ckpt = tf.train.get_checkpoint_state(train_log_dir)
-                if ckpt and ckpt.model_checkpoint_path:
-                    print("checkpoint path: ", ckpt.model_checkpoint_path)
-                    saver.restore(sess, ckpt.model_checkpoint_path)
-                    global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
-                else:
-                    print("No checkpoint file found")
-                    return
-   
-            # Start the queue runners.
-            coord = tf.train.Coordinator()
-            try:
-                # TODO: check if my code is using this
-                threads = [] 
-                for qr in tf.get_collection(tf.GraphKeys.QUEUE_RUNNERS):
-                    threads.extend(qr.create_threads(sess, coord=coord,
-                        daemon=True, start=True))
+            init_op = tf.global_variables_initializer()
+            sess.run(init_op)
 
-                bench(args, kwargs, sess, img_op, des_op, n_values)
-            except Exception as e:  # pylint: disable=broad-except
-                coord.request_stop(e)
-            coord.request_stop()
-            coord.join(threads, stop_grace_period_secs=10)
+            extractor_fn = extractor.MakeExtractor(sess, config)
+
+            # Start input enqueue threads.
+            coord = tf.train.Coordinator()
+            threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+            
+            bench(args, kwargs, sess, extractor_fn, centroids, n_values)
 
 
 if __name__=='__main__':
@@ -246,29 +219,24 @@ if __name__=='__main__':
 
     parser.add_argument('--data', type=str, required=True, help='{cmu, lake}')
     parser.add_argument('--instance', type=str, required=True)
+    parser.add_argument('--centroids', type=str)
     
     parser.add_argument('--img_dir', type=str, required=True)
     parser.add_argument('--meta_dir', type=str, required=True)
 
-    parser.add_argument('--mean_fn', type=str, default='', help='Path to mean/std.')
-    parser.add_argument('--batch_size', type=int, default=1)
-    parser.add_argument('--resize', type=int, default=0, help='set to 1 to resize img')
-    parser.add_argument('--h', type=int, default=480, help='new height')
-    parser.add_argument('--w', type=int, default=704, help='new width')
-    parser.add_argument('--moving_average_decay', type=float, default=0.9999, help='')
-
-    parser.add_argument('--netvlad_dir', type=str)
-    parser.add_argument('--pittsburg_weight', type=str)
-    parser.add_argument('--no_finetuning', type=int, 
-            help='Set to 1 to use pittsburg weight.')
+    parser.add_argument('--config_path', type=str,
+        default='delf_config_example.pbtxt',
+        help="""
+        Path to DelfConfig proto text file with configuration to be used for DELF
+        extraction.
+        """)
     args = parser.parse_args()
  
- 
-    res_dir = "res/netvlad/%d/retrieval/"%args.trial
+    res_dir = "res/delf/%d/retrieval/"%args.trial
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
 
-    perf_dir = "res/netvlad/%d/perf/"%args.trial
+    perf_dir = "res/delf/%d/perf/"%args.trial
     if not os.path.exists(perf_dir):
         os.makedirs(perf_dir)
 
@@ -281,4 +249,8 @@ if __name__=='__main__':
         raise ValueError("I don't know this dataset: %s"%args.data)
 
     n_values = [1, 5, 10, 20]
-    main(args, kwargs, n_values)
+
+    codebook = tools_agg.Codebook()
+    centroids = np.loadtxt(args.centroids)
+    main(args, kwargs, centroids, n_values)
+
