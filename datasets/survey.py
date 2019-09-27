@@ -1,5 +1,6 @@
 """Defines Survey class."""
-import os, argparse, time
+import os
+
 import numpy as np
 import cv2
 

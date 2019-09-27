@@ -4,6 +4,7 @@ Variation of https://github.com/jorjasso/VLAD
 """
 import argparse
 import os
+import pickle
 import time
 
 import cv2
@@ -16,24 +17,8 @@ from tools import metrics
 class OpenCVFeatureExtractor(object):
     """Local feature extractor using OpenCV methods."""
 
-    def __init__(self, args):
+    def __init__(self):
         """Instantiates a local feature extractor."""
-        method = args.method
-        if method=='sift':
-            if args.max_num_feat != -1:
-                self.fe = cv2.xfeatures2d.SIFT_create(args.max_num_feat)
-            else:
-                self.fe = cv2.xfeatures2d.SIFT_create()
-        elif method=='surf':
-            self.fe = cv2.xfeatures2d.SURF_create(400)
-        elif method=='orb':
-            self.fe = cv2.ORB_create()
-        elif method=='mser':
-            self.fe = cv2.MSER_create()
-        elif method=='akaze':
-            self.fe = cv2.AKAZE_create()
-        else:
-            raise ValueError("This mtf method is not handled: %s"%method)
     
     def get_local_features(self, img):
         """Detect and describe local keypoints.
@@ -44,7 +29,39 @@ class OpenCVFeatureExtractor(object):
         _, des =self.fe.detectAndCompute(img, None)
         return des
 
+class SIFTFeatureExtractor(OpenCVFeatureExtractor):
+    """Local feature extractor using OpenCV methods."""
 
+    def __init__(self, max_num_feat):
+        if args.max_num_feat != -1:
+            self.fe = cv2.xfeatures2d.SIFT_create(args.max_num_feat)
+        else:
+            self.fe = cv2.xfeatures2d.SIFT_create()
+
+class SURFFeatureExtractor(OpenCVFeatureExtractor):
+    """Local feature extractor using OpenCV methods."""
+
+    def __init__(self):
+        self.fe = cv2.xfeatures2d.SURF_create(400)
+
+class ORBFeatureExtractor(OpenCVFeatureExtractor):
+    """Local feature extractor using OpenCV methods."""
+
+    def __init__(self, max_num_feat):
+        self.fe = cv2.ORB_create()
+
+class MSERFeatureExtractor(OpenCVFeatureExtractor):
+    """Local feature extractor using OpenCV methods."""
+
+    def __init__(self, max_num_feat):
+        self.fe = cv2.MSER_create()
+
+class AKAZEFeatureExtractor(OpenCVFeatureExtractor):
+    """Local feature extractor using OpenCV methods."""
+
+    def __init__(self, max_num_feat):
+        self.fe = cv2.AKAZE_create()
+   
 class DelfFeatureExtractor(object):
     """Object to read computed delf local features from disk."""
 
@@ -56,33 +73,127 @@ class DelfFeatureExtractor(object):
     def get_local_features(self, img_fn):
         """ """
 
+class FeatureExtractorFactory(object):
+    """Provides one of the registered local feature extractor."""
+
+    def __init__(self):
+        self._builders = {}
+        self._builders["sift"] = SIFTFeatureExtractor
+        self._builders["surf"] = SURFFeatureExtractor
+        self._builders["orb"] = ORBFeatureExtractor
+        self._builders["mser"] = MSERFeatureExtractor
+        self._builders["akaze"] = AKAZEFeatureExtractor
+        self._builders["delf"] = DelfFeatureExtractor
+
+    def register_builder(self, key, builder):
+        self._builders[key] = builder
+
+    def create(self, key, kwargs):
+        builder = self._builders[key]
+        if not builder:
+            raise ValueError("Unknown feature extractor: %s"%key)
+        return builder(**kwargs)
+
+
+def fvecs_read(filename, c_contiguous=True):
+    """Reads the fvecs format. Returns np array.
+    
+    Copied from: https://gist.github.com/danoneata/49a807f47656fedbb389
+    """
+    fv = np.fromfile(filename, dtype=np.float32)
+    if fv.size == 0:
+        return np.zeros((0, 0))
+    dim = fv.view(np.int32)[0]
+    assert dim > 0
+    fv = fv.reshape(-1, 1 + dim)
+    if not all(fv.view(np.int32)[:, 0] == dim):
+        raise IOError("Non-uniform vector sizes in " + filename)
+    fv = fv[:, 1:]
+    if c_contiguous:
+        fv = fv.copy()
+    return fv
+
+def load_cbk_Flickr100k():
+    """Returns vlad codebook trained on Flicker100k."""
+    return fvecs_read('meta/words/holidays/clust_k64.fvecs')
+
+def load_cbk_delf_par1024():
+    """Returns delf codebook trained on Paris6k with 1024 centroids."""
+    return np.loadtxt("meta/k1024_paris.txt")
+
+class Codebook():
+    """Loads various codebook.
+        
+        NW: Number of visual Words.
+        DW: Dimension of visual Words.
+    """
+    def __init__(self):
+        self.d = {}
+        # vlad # (NW, DW) = (64,128)
+        self.d["flickr100k"] = load_cbk_Flickr100k
+
+        # delf
+        self.d["delf_k1024_paris"] = load_cbk_delf_par1024
+
+
+    
+    def load(self, key):
+        loader = self.d[key]
+        if not loader:
+            raise ValueError("Unknown codebook: %s"%key)
+        return loader()
+
 
 def gen_codebook():
     """ """
 
 
+def normalise_vlad(des_vlad, vlad_norm='l2'):
+    """
+    Flatten and normalise a vlad descriptor.
+    Args:
+        des_vlad: (vlad_dim,)
+        vlad_norm: {l2, ssr}
+    """
+    if vlad_norm=='l2':
+        des_vlad = des_vlad.flatten()
+        norm = np.sqrt(np.sum(des_vlad**2))
+        if norm > 1e-8:
+            des_vlad /= np.sqrt(np.sum(des_vlad**2))
+        else:
+            des_vlad = np.ones(des_vlad.size)
+    elif vlad_norm=='ssr':
+        des_vlad = des_vlad.flatten()
+        # power normalization, also called square-rooting normalization
+        des_vlad = np.sign(des_vlad)*np.sqrt(np.abs(des_vlad))
+        # L2 normalization
+        des_vlad = des_vlad/np.sqrt(np.dot(des_vlad,des_vlad))
+    else:
+        raise ValueError("Unknown norm: %s"%vlad_norm)
+    return des_vlad
+
+
 def lf2vlad(lf, centroids, vlad_norm):
     """Computes vlad descriptors from the local features.
     Args:
-        lf: (N, D) np array. N local features of dimension D.
+        lf: (N, D) np array. N Local Features of dimension D.
         centroids: (NW, DW) np array. NW visual words of dimension DW.
     """
-    cluster_num, des_dim = centroids.shape[:2]
-    DW = centroids.shape[1] # dimension of visual word
-    D = lf.shape[1] # dimension of local img feature
-    if des_dim != lf.shape[1]:
+    NW, DW = centroids.shape[:2]
+    N, D = lf.shape[:2] # dimension of local img feature
+    if DW != D:
         raise ValueError("Error: D != DW."
                 "Local descriptor dim is different than the visual word's one.")
 
     # cluster assignment
     c = np.expand_dims(centroids, 1) # row
-    x = np.expand_dims(des, 0) # col
+    x = np.expand_dims(lf, 0) # col
     # euclidean distance between all pairs of local descriptors and visual
     # words/cluster
     d = np.linalg.norm(c - x, ord=None, axis=2) 
     x2c = np.argmin(d, axis=0) # x2c[j] = cluster of j-th local descriptor
     # one hot encoding of the cluster assignment
-    x2c_hot = np.eye(cluster_num)[x2c].T # x2c_host[i,j]=1 if x_j belongs to c_i
+    x2c_hot = np.eye(NW)[x2c].T # x2c_host[i,j]=1 if x_j belongs to c_i
 
     # cluster distance
     gap = x - c # gap[i,j] = c_i - x_j
@@ -103,7 +214,7 @@ def describe_img(args, fe, img):
     Returns:
         des: (1, D) a global image descriptor of dimension D for img.
     """
-    lf = fe.get_local_features(args, img)
+    lf = fe.get_local_features(img)
     if args.agg_mode == "vlad":
         des = lf2vlad(lf, centroids, args.vlad_norm)
     elif args.agg_mode == "bow":
@@ -113,9 +224,10 @@ def describe_img(args, fe, img):
     return des
 
 
-def describe_survey(args, fe, survey):
+def describe_survey(args, fe, centroids, survey):
     """ """
-    des_dim = args.n_words
+    NW, DW = centroids.shape[:2] # Number of Words, Dim of Words
+    des_dim = NW * DW # global img descriptor dimension
     survey_size = survey.get_size()
     des_v = np.empty((survey_size, des_dim))
     for idx in range(survey.get_size()):
@@ -128,8 +240,10 @@ def describe_survey(args, fe, survey):
 
 def bench(args, kwargs, centroids, n_values):
     """ """
+    global_start_time = time.time()
+
     # check if this bench already exists
-    perf_dir = "res/%s/%d/perf"%args.agg_mode
+    perf_dir = "res/%s/%d/perf"%(args.agg_mode, args.trial)
     mAP_fn = "%s/%d_c%d_%d_mAP.txt"%(perf_dir, args.slice_id, args.cam_id,
         args.survey_id)
     recalls_fn = "%s/%d_c%d_%d_rec.txt"%(perf_dir, args.slice_id, args.cam_id,
@@ -157,14 +271,15 @@ def bench(args, kwargs, centroids, n_values):
 
     # choose a local feature extractor
     feFactory = FeatureExtractorFactory()
-    fe = feFactory(args.fe)
+    kwargs = {"max_num_feat": args.max_num_feat}
+    fe = feFactory.create(args.lf_mode, kwargs)
 
     # describe db img
     local_start_time = time.time()
     db_des_fn = '%s/%d_c%d_db.pickle'%(res_dir, args.slice_id, args.cam_id)
     if not os.path.exists(db_des_fn): # if you did not compute the db already
         print('** Compute des for database img **')
-        db_img_des_v = describe_survey(args, fe, db_survey)
+        db_img_des_v = describe_survey(args, fe, centroids, db_survey)
         with open(db_des_fn, 'wb') as f:
             pickle.dump(db_img_des_v, f)
     else: # if you already computed it, load it from disk
@@ -181,7 +296,7 @@ def bench(args, kwargs, centroids, n_values):
             args.survey_id)
     if not os.path.exists(q_des_fn): # if you did not compute the db already
         print('\n** Compute des for query img **')
-        q_img_des_v = describe_survey(args, fe, q_survey)
+        q_img_des_v = describe_survey(args, fe, centroids, q_survey)
         with open(q_des_fn, 'wb') as f:
             pickle.dump(q_img_des_v, f)
     else: # if you already computed it, load it from disk
@@ -195,8 +310,8 @@ def bench(args, kwargs, centroids, n_values):
     # retrieve each query
     print('\n** Retrieve query image **')
     local_start_time = time.time()
-    d = np.linalg.norm(np.expand_dims(q_des_v, 1) -
-            np.expand_dims(db_des_v, 0), ord=None, axis=2)
+    d = np.linalg.norm(np.expand_dims(q_img_des_v, 1) -
+            np.expand_dims(db_img_des_v, 0), ord=None, axis=2)
     order = np.argsort(d, axis=1)
     #np.savetxt(order_fn, order, fmt='%d')
     duration = (time.time() - local_start_time)
@@ -206,13 +321,13 @@ def bench(args, kwargs, centroids, n_values):
     # compute perf
     print('\n** Compute performance **')
     local_start_time = time.time()
-    rank_l = retrieval.get_retrieval_rank(order_l, args.top_k)
+    rank_l = retrieval.get_retrieval_rank(order, args.top_k)
     
     gt_name_d = retrieval.get_gt_rank("name")
     mAP = metrics.mAP(rank_l, gt_name_d)
 
     gt_idx_l = retrieval.get_gt_rank("idx")
-    recalls = metrics.recallN(order_l, gt_idx_l, n_values)
+    recalls = metrics.recallN(order, gt_idx_l, n_values)
     
     duration = (time.time() - local_start_time)
     print('(END) run time: %d:%02d'%(duration/60, duration%60))
@@ -230,7 +345,7 @@ def bench(args, kwargs, centroids, n_values):
             args.survey_id)
     rank_fn = "%s/%d_c%d_%d_rank.txt"%(res_dir, args.slice_id, args.cam_id,
             args.survey_id)
-    retrieval.write_retrieval(order_l, args.top_k, order_fn, rank_fn)
+    retrieval.write_retrieval(order, args.top_k, order_fn, rank_fn)
 
     # write perf
     perf_dir = 'res/vlad/%d/perf'%args.trial
@@ -240,9 +355,7 @@ def bench(args, kwargs, centroids, n_values):
 
 
 if __name__=='__main__':
-
     parser = argparse.ArgumentParser()
-
     parser.add_argument('--trial', type=int, required=True, help='Trial.')
     parser.add_argument('--dist_pos', type=float, required=True)
     parser.add_argument('--top_k', type=int, default=20)
@@ -269,13 +382,14 @@ if __name__=='__main__':
     parser.add_argument('--h', type=int, default=480, help='new height')
     parser.add_argument('--w', type=int, default=704, help='new width')
     args = parser.parse_args()
+
+    n_values = [1, 5, 10, 20]
  
- 
-    res_dir = "res/vlad/%d/retrieval/"%args.trial
+    res_dir = "res/%s/%d/retrieval/"%(args.agg_mode, args.trial)
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
 
-    perf_dir = "res/vlad/%d/perf/"%args.trial
+    perf_dir = "res/%s/%d/perf/"%(args.agg_mode, args.trial)
     if not os.path.exists(perf_dir):
         os.makedirs(perf_dir)
 
@@ -287,6 +401,8 @@ if __name__=='__main__':
     else:
         raise ValueError("I don't know this dataset: %s"%args.data)
 
-    centroids = np.loadtxt(args.centroids)
+
+    codebook = Codebook()
+    centroids = codebook.load(args.centroids)
 
     bench(args, kwargs, centroids, n_values)
