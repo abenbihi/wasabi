@@ -1,5 +1,5 @@
 #!/bin/sh
-MACHINE=1
+MACHINE=0
 if [ "$MACHINE" -eq 0 ]; then
   export WS_DIR=/home/abenbihi/ws/
 elif [ "$MACHINE" -eq 1 ]; then
