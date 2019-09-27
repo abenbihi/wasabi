@@ -237,7 +237,7 @@ def lf2bow(lf, centroids, vlad_norm):
     return v
 
 
-def describe_img(args, fe, img):
+def describe_img(args, fe, centroids, img):
     """Computes a global descriptor for the image.
 
     Returns:
@@ -273,7 +273,7 @@ def describe_survey(args, fe, centroids, survey):
         if idx % 50 == 0:
             print("%d/%d"%(idx, survey.get_size()))
         img = survey.get_img(idx, proc=False)
-        des_v[idx,:] = describe_img(args, fe, img)
+        des_v[idx,:] = describe_img(args, fe, centroids, img)
     return des_v
 
 
