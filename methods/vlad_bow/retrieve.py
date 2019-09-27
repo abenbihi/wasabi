@@ -134,8 +134,6 @@ class Codebook():
 
         # delf
         self.d["delf_k1024_paris"] = load_cbk_delf_par1024
-
-
     
     def load(self, key):
         loader = self.d[key]
@@ -441,7 +439,6 @@ if __name__=='__main__':
                 "mask_dir": args.mask_dir}
     else:
         raise ValueError("I don't know this dataset: %s"%args.data)
-
 
     codebook = Codebook()
     centroids = codebook.load(args.centroids)

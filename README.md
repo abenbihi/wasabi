@@ -29,5 +29,35 @@ Script to Symphony images:
 # NetVLAD Results
     ./scripts/netvlad.sh <trial>
     python -m plots.tab2latex --method netvlad --trial <trial> --data cmu_park
-   
+
+
+# VLAD/BOW Results
+With original codebook trained on Flickr100
+
+    ./scripts/vlad_bow.sh <trial> <agg_mode> flickr100k
+
+      # example (See scripts/vlad_bow.sh to run it)
+      python3 -m methods.vlad.retrieve \
+        --trial 0 \
+        --dist_pos 5 \
+        --top_k 20 \
+        --lf_mode sift \
+        --max_num_feat 1000 \
+        --agg_mode bow \
+        --centroids flickr100k \
+        --vlad_norm ssr \
+        --data cmu \
+        --slice_id 22 \
+        --cam_id 0 \
+        --survey_id 0 \
+        --img_dir "$img_dir" \
+        --meta_dir "$meta_dir" \
+        --n_words 64 
+
+## Generate codebook on CMU-Seasons/Lake 
+With codebook finetuned on cmu park
+
+With codebook finetuned on lake
+
+
 # Paper plots
