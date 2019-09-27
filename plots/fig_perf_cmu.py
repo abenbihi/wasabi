@@ -10,10 +10,6 @@ import numpy as np
 ###############################################################################
 # PAPER PLOTS
 
-RANDOM_DIR  = '../fuck_retrieval/res/random/'
-FUCK_DIR    = '../fuck_retrieval/res/fuck/'
-NETVLAD_DIR = '../fuck_netvlad/res/'
-
 metric_l = ['mAP', 'rec1', 'rec5', 'rec10', 'rec20']
 n_values = [1, 5, 10, 20]
 
@@ -36,12 +32,12 @@ color_l     = [
         ]
 
 res_dir_l   = [
-        '../fuck_retrieval/res/random/', 
-        '../fuck_retrieval/res/fuck/', 
-        '../fuck_netvlad/res/', '../fuck_netvlad/res/', 
-        '../fuck_retrieval/res/vlad/', # delf
-        '../fuck_retrieval/res/vlad/', '../fuck_retrieval/res/vlad', # vlad, vlad*
-        '../fuck_retrieval/res/vlad/', '../fuck_retrieval/res/vlad/', # bow, bow*
+        'res/random/', 
+        'res/wasabi/', 
+        'res/netvlad.', 'res/netvlad/', 
+        'res/vlad/', # delf
+        'res/vlad/', 'res/vlad', # vlad, vlad*
+        'res/vlad/', 'res/vlad/', # bow, bow*
         ]
 
 fmt_l = ['.', 'o', 

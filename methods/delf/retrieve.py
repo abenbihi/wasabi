@@ -33,7 +33,7 @@ def describe_img(args, sess, extractor_fn, centroids, img):
         des: global img descriptor of dimension NW*DW.
     """
     (locations_out, descriptors_out, feature_scales_out,
-            attention_out) = extractor_fn(im)
+            attention_out) = extractor_fn(img)
     des = tools_agg.lf2vlad(descriptors_out, centroids, args.vlad_norm)
     return des
 
@@ -220,6 +220,7 @@ if __name__=='__main__':
     parser.add_argument('--data', type=str, required=True, help='{cmu, lake}')
     parser.add_argument('--instance', type=str, required=True)
     parser.add_argument('--centroids', type=str)
+    parser.add_argument('--vlad_norm', type=str)
     
     parser.add_argument('--img_dir', type=str, required=True)
     parser.add_argument('--meta_dir', type=str, required=True)

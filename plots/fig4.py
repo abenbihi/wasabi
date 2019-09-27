@@ -49,7 +49,7 @@ for img_id in img_id_l:
         #print(seg_dir)
         #print(img_fn_l)
     else:
-        print("Error: Go fuck yourself")
+        print("Error.")
         exit(1)
 
     img_l = [cv2.imread(img_fn) for img_fn in img_fn_l]

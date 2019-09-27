@@ -11,7 +11,7 @@ elif MACHINE == 0:
 elif MACHINE == 2:
     WS_DIR = '/home/gpu_user/assia/ws/' # gpu
 else:
-    print('Get you mother fucking MACHINE macro correct in cst.py')
+    print('Get you MACHINE macro correct in cst.py')
     exit(1)
 
 if DATA=='inria_holidays':
@@ -26,7 +26,7 @@ else:
 DATASET_DIR = '%s/datasets/'%WS_DIR
 SEG_ROOT_DIR = '%s/tf/cross-season-segmentation/res/'%WS_DIR
 NUM_CLASS = 19
-PIXEL_BORDER = 1 # border pixels on which the segmentation is fucked up
+PIXEL_BORDER = 1 # border pixels on which the segmentation is ko
 SKY_LAB_ID = 10
 
 ## CMU-Seasons
