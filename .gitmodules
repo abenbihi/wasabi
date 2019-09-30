@@ -4,3 +4,6 @@
 [submodule "third_party/models"]
 	path = third_party/models
 	url = https://github.com/tensorflow/models.git
+[submodule "third_party/cross-season-segmentation"]
+	path = third_party/cross-season-segmentation
+	url = https://github.com/maunzzz/cross-season-segmentation.git
