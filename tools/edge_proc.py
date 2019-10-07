@@ -10,8 +10,6 @@ def contour2patch(contour, patch_shape, color=255):
     contour = np.squeeze(contour).astype(np.float32)
 
     mean_x, mean_y = np.mean(contour, axis=0)
-    #contour[:,0] -= mean_x
-    #contour[:,1] -= mean_y
     old_min = np.min(contour)
     old_max = np.max(contour)
 
@@ -20,29 +18,16 @@ def contour2patch(contour, patch_shape, color=255):
     new_max = patch_shape[0] - border
     contour = new_min + (contour - old_min) * (new_max - new_min) / (old_max -
             old_min)
-    #print('X\tmin: %.1f\tmax: %.1f'%( np.min(contour[:,0]),
-    #    np.max(contour[:,0])) )
-    #print('Y\tmin: %.1f\tmax: %.1f\n'%( np.min(contour[:,1]),
-    #    np.max(contour[:,1])) )
-
     contour = contour.astype(np.int)
     
     # use draw contour
     patch = np.zeros(patch_shape[:2], np.uint8)
     contour = np.expand_dims(contour, 1)
-    #print(patch.shape)
     cv2.drawContours(patch, [contour], 0, 255, 1)
     if len(patch_shape) == 3:
         l, c = np.where(patch==255)
         patch = np.tile(np.expand_dims(patch, 2), (1,1,3))
         patch[l,c,:] = color
-
-    #patch = np.zeros(patch_shape, np.uint8)
-    #patch[contour[:,1], contour[:,0]] = color
-
-    #cv2.imshow('patch', patch)
-    #cv2.waitKey(0)
-
     contour = np.squeeze(contour)
     contour = np.unique(contour, axis=0)
 
@@ -126,11 +111,6 @@ def contours2curve(params, contour, q_img):
                 break
         if head == c_num-1:
             mask_neighbour[:,head] = 0
-            #print("Error: head == c_num-1")
-            #exit(1)
-        #input('wait')
-        #print(free_neighbour_idx)
-        #input('free_neighbour_idx')
 
         if free_neighbour_idx.size == 0:
             break
@@ -139,20 +119,12 @@ def contours2curve(params, contour, q_img):
         queue += list(free_neighbour_idx)
         current_curve = all_curve[free_neighbour_idx,:]
         
-        #print(d.shape)
-        #print(head)
-        #print(free_neighbour_idx)
-        #print(free_neighbour_idx.size)
-        #print(np.max(free_neighbour_idx))
+
         max_dist = np.max(d[head,free_neighbour_idx])
         
         if debug:
             print('head: %d'%head)
             print('max_dist: %.3f'%max_dist)
-            #print(current_curve)
-            #input('current_curve')
-            #print(queue)
-            #input('queue')
             curve_img = np.zeros(q_img.shape[:2], np.uint8)
             contour_img[current_curve[:,1], current_curve[:,0]] = 255
             cv2.imshow('contour_img', contour_img)
@@ -161,15 +133,9 @@ def contours2curve(params, contour, q_img):
         
         while len(queue)!=0:
             head = queue.pop(0)
-            #print('\nhead: %d'%head)
-            #if np.sum(mask_neighbour[:, head]) == 0:
-            #    input('Already added')
-            #    continue # already added
-            #else:
+
             free_neighbour_idx = np.where(mask_neighbour[head, :] == 1)[0]
-            #print('free_neighbour_idx')
             if free_neighbour_idx.size == 0:
-                #print('this point has no neighbour')
                 continue # this pt has no neighbour
             else:
                 mask_neighbour[:,free_neighbour_idx] = 0
@@ -208,14 +174,6 @@ def contours2curve(params, contour, q_img):
                 if c.shape[0] > max_size:
                     contour_idx = i
                     max_size = c.shape[0]
-            #cv2.drawContours(curve_img, contours, 0, 128, 3) 
-            #print(contours[0])
-            #print(contours[1])
-            #print(len(contours))
-            #curve_img[curve[:,1], curve[:,0]] = 255
-            #cv2.imshow('ko_curve_img', curve_img)
-            #if (cv2.waitKey(0) & 0xFF) == ord("q"):
-            #    exit(0)           
         sorted_curves_l.append(np.squeeze(contours[contour_idx]))
 
     return sorted_curves_l

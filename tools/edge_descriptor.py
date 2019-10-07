@@ -20,19 +20,12 @@ def fourier_opencv(cc, min_contour_size):
     for i in range(1, cc_num): # 0 are the ignored components
             cc_i = np.zeros(cc.shape, np.uint8)
             cc_i[cc==i] = 255
-            #cv2.imshow('cc_i', cc_i)
-            #stop_show = cv2.waitKey(0) & 0xFF
-            #if stop_show == ord("q"):
-            #    exit(0)
-            #continue
             
             # contours
             if (1==1):
                 im2, contours, hierarchy = cv2.findContours(cc_i, 
                         cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
 
-                #contours_img = np.zeros(img.shape, np.uint8)
-                #cv2.drawContours(contours_img, contours, -1, (0,255,0), 3)
                 for i,_ in enumerate(contours):
                     contour = contours[i]
                     
@@ -46,13 +39,6 @@ def fourier_opencv(cc, min_contour_size):
                         des = cv2.ximgproc.fourierDescriptor(sampling)
                         #print(des.shape)
                         des_l.append(np.squeeze(des).flatten())
-                    #else:
-                    #    print("%d: ignore. It is a zigouigoui of size: %d"%(i, contour_size))
-                               
-                    #cv2.imshow('contour', contour_img)
-                    #stop_show = cv2.waitKey(0) & 0xFF
-                    #if stop_show == ord("q"):
-                    #    exit(0)
     return des_l
 
 
@@ -136,7 +122,11 @@ def contour2tangeant(contour, sample_num, contour_img=None):
 
 
 def fourier_zahn72(contours, img_shape, nbFD=-1):
-
+    """Implements the fourier descriptor from 
+    C. T. Zahn and R. Z. Roskies, “Fourier descriptors for plane closed
+    curves,” IEEE Transactions on computers, vol. 100, no. 3, pp. 269–
+    281, 1972.
+    """
     if len(contours)==0:
         print("Error: list of contours is empty.")
         return None
@@ -152,9 +142,6 @@ def fourier_zahn72(contours, img_shape, nbFD=-1):
             contour_idx = i
     #print(contour_idx)
     contour = contours[contour_idx]
-    #print(contour)
-    #print(contour.shape)
-
 
     # draw contour
     contour_img = np.zeros(img_shape, np.uint8)
@@ -166,43 +153,26 @@ def fourier_zahn72(contours, img_shape, nbFD=-1):
     print('data_size: %d'%data_size)
     
     dft = cv2.dft(data, flags=cv2.DFT_REAL_OUTPUT)
-    #dft = cv2.dft(data, flags=cv2.DFT_REAL_OUTPUT | cv2.DFT_SCALE)
-    #dft = cv2.dft(data, flags=cv2.DFT_COMPLEX_OUTPUT)
     dft = np.squeeze(dft)
-    #print('dft.shape: %d', dft.shape[0])
     
     # keep only nbFD components
     if nbFD != -1:
         n1 = int(nbFD/2)
         n2 = data_size - n1
         des_me = np.zeros(nbFD)
-        #print('nbFD: %d\tn1: %d\tn2: %d'%(nbFD, n1, n2))
-        #print(des_me[:n1].shape)
-        #print(dft[1:n1+1].shape)
-        #print(des_me[n1:].shape)
-        #print(dft[n2:].shape)
-        
         des_me[:n1] = dft[1:n1+1]
         des_me[n1:] = dft[n2:]
     else:
         des_me = dft
-    
-    # test that the 0 component is the DC signal
-    #print('avg data: %.3f\tc_0: %.3f' %(np.mean(data, axis=0), dft[0]))
-
-    #print('dft')
-    #print(np.squeeze(dft)[:10])
-    #print(np.squeeze(des_me)[:10])
-    #cv2.imshow('contour', contour_img)
-    #stop_show = cv2.waitKey(0) & 0xFF
-    #if stop_show == ord("q"):
-    #    exit(0)
-
     return des_me
 
 
 def fourier_granlund72(contours, img_shape, nbFD=-1):
-    """
+    """Implements the fourier descriptor from
+    C. T. Zahn and R. Z. Roskies, “Fourier descriptors for plane closed
+    curves,” IEEE Transactions on computers, vol. 100, no. 3, pp. 269–
+    281, 1972.
+    
     Complex dft on N points sampled from the curve.
     Same as cv::fourierDescriptor. The only possible change is on to sample on
     the curve.
@@ -268,8 +238,16 @@ def fourier_granlund72(contours, img_shape, nbFD=-1):
 
 
 def wavelet_chuang96(args, contour, img_shape):
-
-
+    """Implements the wavelet descriptor from 
+    G.-H. Chuang and C.-C. Kuo, “Wavelet descriptor of planar curves:
+    Theory and applications,” IEEE Transactions on Image Processing,
+    vol. 5, no. 1, pp. 56–70, 1996
+    Args:
+        args: misc parameters
+        contour: list of contours. Contour shape is [N,1,2] with N the # of pts
+            in the contour.
+        img_shape: (h,w)
+    """
     # draw contour
     if (0==1):
         contour_img = np.zeros(img_shape, np.uint8)
@@ -278,7 +256,6 @@ def wavelet_chuang96(args, contour, img_shape):
         contour_img = None
     
     # TODO: replace with more relevant sampling than just regular steps
-    #sample_num = 32 # must be a power of 2
     base_sample_num = np.log(args.contour_sample_num)/np.log(2)
     if 2**base_sample_num != args.contour_sample_num:
         print("Error: you must sample 'a power of 2' number of points.")
@@ -286,62 +263,19 @@ def wavelet_chuang96(args, contour, img_shape):
     
     wt_name = 'haar'
     wt = pywt.Wavelet(wt_name)
-    #print(w)
 
-    # 1d on the tangeant representation
-    if (0==1): 
-        #sample_num = 64 # TODO: un-hard this 
-        data = contour2tangeant(contour, args.contour_sample_num, contour_img)
+    if contour.ndim == 2:
+        contour = np.expand_dims(contour, 1)
+    sampling = cv2.ximgproc.contourSampling(contour, args.contour_sample_num)
+    sampling = np.squeeze(sampling)
 
-        input_size = data.shape[0]
-        #print('input_size: %d'%input_size)
-        #return None
-        #print('# of filters: %d'%w.dec_len)
-        output_size = pywt.dwt_coeff_len(input_size, filter_len= wt.dec_len,
-                mode='symmetric')
-        #print('output_size: %d'%output_size)
+    xt = pywt.wavedec(sampling[:,0], wt, level=1) # = wavedec(..., level=1)
+    yt = pywt.wavedec(sampling[:,1], wt, level=1) # = wavedec(..., level=1)
 
-        cA, cD = pywt.dwt(data, wt) # = wavedec(..., level=1)
-        #print('\ncA')
-        #print(cA)
-        #print(cA)
-        #print(cA.shape)
-        #print('\ncD')
-        #print(cD)
-        #print(cD.shape)
-        toto = pywt.wavedec(data, wt, level=1) # decomposition in 
-        cA, cD = toto
-        #print(toto)
-        des = pywt.coeffs_to_array(toto)[0]
-        #print(des)
-
-        #print('\des.shape')
-        #print(des.shape)
-
-    else:
-        #print(contour.shape)
-        if contour.ndim == 2:
-            contour = np.expand_dims(contour, 1)
-        sampling = cv2.ximgproc.contourSampling(contour, args.contour_sample_num)
-        sampling = np.squeeze(sampling)
-
-        #x_cA, x_cD = pywt.wavedec(sampling[:,0], wt, level=1) # = wavedec(..., level=1)
-        #y_cA, y_cD = pywt.wavedec(sampling[:,1], wt, level=1) # = wavedec(..., level=1)
-
-        xt = pywt.wavedec(sampling[:,0], wt, level=1) # = wavedec(..., level=1)
-        yt = pywt.wavedec(sampling[:,1], wt, level=1) # = wavedec(..., level=1)
-
-        x_des = pywt.coeffs_to_array(xt)[0]
-        y_des = pywt.coeffs_to_array(yt)[0]
-        
-        des = np.hstack((x_des, y_des))
-
-        des /= np.sqrt( np.sum(des**2) )
-        #print(des.shape)
-
-        #toto = pywt.wavedec2(sampling, 'db2')
-        #print(len(toto))
-        #print(toto)
+    x_des = pywt.coeffs_to_array(xt)[0]
+    y_des = pywt.coeffs_to_array(yt)[0]
     
+    des = np.hstack((x_des, y_des))
+    des /= np.sqrt( np.sum(des**2) )
     return des
 

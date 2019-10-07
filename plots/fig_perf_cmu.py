@@ -252,16 +252,6 @@ def perf_rec_avg_slices(perf, survey_ok, slice_v, cam_v, plot_dir, plot_fn):
     cv2.imshow('out', out)
     cv2.waitKey(0)
 
-    #line_d[2].append(255*np.ones(fig.shape, np.uint8))
-    #line_d[2].append(255*np.ones(fig.shape, np.uint8))
-    #print(len(line_d[0]))
-    #print(len(line_d[1]))
-    #out = np.vstack((np.hstack(line_d[0]), np.hstack(line_d[1]),
-    #    np.hstack(line_d[2])))
-    #cv2.imwrite('plots/img/rec_avg_over_slice.png', out)
-    #cv2.imshow('out', out)
-    #cv2.waitKey(0)
-
 
 def fig5():
     """Perf plot on cmu park."""
@@ -289,11 +279,6 @@ def fig5():
         for metric in metric_l:
             perf[method][metric] = np.loadtxt('%s/%d/%s.txt'%(res_dir_l[i],
                 trial_l[i], metric))[:survey_num, :]
-
-    #plot_dir = "plots/img/fig5"
-    #if not os.path.exists(plot_dir):
-    #    os.makedirs(plot_dir)
-    #perf_rec_avg_surveys(perf, slice_v, cam_v, plot_dir, "%s.png"%plot_dir)
 
 
     # take into account the lack of ground-truth poses in surveys 24/25 cam1
@@ -352,114 +337,5 @@ def fig9():
 
 
 if __name__=='__main__':
-    #fig5()
+    fig5()
     fig9()
-
-
-    #perf_rec_avg_surveys()
-    #perf_rec_avg_slices()
-    
-    #perf_mAP_avg_surveys()
-    #perf_mAP_avg_slices()
-
-
-
-# TODO
-#def perf_mAP_avg_surveys():
-#    """Average the mAP over surveys for each slice. Shows the perf vs the
-#    semantic elements. """ 
-#    # avg over survey for each slice
-#    metric = 'mAP'
-#    
-#    survey_ok = np.ones(11, np.int32)
-#    survey_ok[8] = 0
-#
-#    methods_num = len(method_l)
-#    for method in method_l:
-#        print('method: %s'%method)
-#        avg = np.zeros(slice_num)
-#        std = np.zeros(slice_num)
-#        for i, slice_cam in enumerate(slice_cam_id):
-#            slice_id = int(slice_cam/10)
-#            cam_id = slice_cam%10
-#            print('slice_id: %d\tcam_id: %d'%(slice_id, cam_id))
-#            if (slice_id in [24,25]) and (cam_id == 1):
-#                #print('STOPPP')
-#                #print(perf[method][metric][:,i])
-#                #print(perf[method][metric][survey_ok==1,i])
-#                avg[i] = np.mean(perf[method][metric][survey_ok==1,i])
-#                std[i] = np.std(perf[method][metric][survey_ok==1,i])
-#            else:
-#                avg[i] = np.mean(perf[method][metric][:,i])
-#                std[i] = np.std(perf[method][metric][:,i])
-#         
-#        perf[method]['avg_survey_mAP'] = avg
-#        perf[method]['std_survey_mAP'] = std
-# 
-#        
-#    absc = ['%d-c%d'%(slice_cam/10, slice_cam%10) for slice_cam in slice_cam_id]
-#    plt.figure()
-#    for i, method in enumerate(method_l):
-#        mean_v = perf[method]['avg_survey_mAP'] 
-#        std_v = perf[method]['std_survey_mAP']
-#        plt.errorbar(absc, mean_v, std_v, linestyle='None', fmt=fmt_l[i],
-#                color=color_l[i], alpha=0.25, label=method,
-#                capsize=capsize_l[i])
-#    fig_fn = 'plots/img/mAP_avg_over_survey_per_slice.png'
-#    #plt.title('Slice %d - Camera %d'%(slice_id/10, slice_id%10))
-#    plt.legend(loc=0)
-#    plt.savefig(fig_fn)
-#    plt.close()
-#
-#    toto = cv2.imread(fig_fn)
-#    cv2.imshow('toto', toto)
-#    cv2.waitKey(0)
-
-
-
-#def perf_mAP_avg_slices():
-#    """Average the mAP over slices for each slice. Shows the perf vs the
-#    img conditions. """ 
-#    # avg over survey for each slice
-#    metric = 'mAP'
-#    
-#    survey_ok = np.ones(8, np.int32)
-#    survey_ok[5] = 0
-#    survey_ok[7] = 0
-#
-#    methods_num = len(method_l)
-#    for method in method_l:
-#        print('method: %s'%method)
-#        perf[method]['avg_slice_mAP'] = np.zeros(survey_num)
-#        avg = np.zeros(survey_num)
-#        std = np.zeros(survey_num)
-#
-#        for survey_id in range(survey_num):
-#            print('survey_id: %d'%survey_id)
-#            if survey_id == 8:
-#                avg[survey_id] = np.mean(perf[method][metric][survey_id, survey_ok==1])
-#                std[survey_id] = np.std(perf[method][metric][ survey_id, survey_ok==1])
-#            else:
-#                avg[survey_id] = np.mean(perf[method][metric][survey_id,:])
-#                std[survey_id] = np.std(perf[method][metric][survey_id,:])
-#        perf[method]['avg_slice_mAP'] = avg
-#        perf[method]['std_slice_mAP'] = std
-#        
-#    absc = np.arange(survey_num)
-#    plt.figure()
-#    for i, method in enumerate(method_l):
-#        mean_v = perf[method]['avg_slice_mAP'] 
-#        std_v = perf[method]['std_slice_mAP']
-#        plt.errorbar(absc, mean_v, std_v, linestyle='None', fmt=fmt_l[i],
-#                color=color_l[i], alpha=0.25, label=method,
-#                capsize=capsize_l[i])
-#    fig_fn = "%s/mAP_avg_over_slice.png"%plot_dir
-#    #plt.title('Slice %d - Camera %d'%(slice_id/10, slice_id%10))
-#    plt.legend()
-#    plt.savefig(fig_fn)
-#    plt.close()
-#
-#    toto = cv2.imread(fig_fn)
-#    cv2.imshow('toto', toto)
-#    cv2.waitKey(0)
-#

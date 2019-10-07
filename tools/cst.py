@@ -2,8 +2,6 @@
 import numpy as np
 
 MACHINE = 0
-DATA='inria_holidays'
-
 if MACHINE == -1:
     WS_DIR = '/home/ws/' # docker
 elif MACHINE == 0:
@@ -28,19 +26,6 @@ SEG_ROOT_DIR = '%s/tf/cross-season-segmentation/res/'%WS_DIR
 NUM_CLASS = 19
 PIXEL_BORDER = 1 # border pixels on which the segmentation is ko
 SKY_LAB_ID = 10
-
-## CMU-Seasons
-#MACHINE = 0
-#if MACHINE == 0:
-#    #EXT_IMG_DIR = '/mnt/data_drive/dataset/Extended-CMU-Seasons/'
-#    EXT_IMG_DIR = '%s/datasets/Extended-CMU-Seasons/'%WS_DIR
-#    #DATA_DIR = '/mnt/data_drive/dataset/CMU-Seasons/'
-#elif MACHINE == 1:
-#    EXT_IMG_DIR = '%s/datasets/Extended-CMU-Seasons/'%WS_DIR
-#    #DATA_DIR = '/home/abenbihi/ws/datasets/CMU-Seasons/'
-#else:
-#    print('Get you MTF MACHINE macro correct !')
-#    exit(1)
 
 EXT_IMG_DIR = '/mnt/data_drive/dataset/Extended-CMU-Seasons/'
 EXT_IMG_DIR = '%s/datasets/Extended-CMU-Seasons/'%WS_DIR
