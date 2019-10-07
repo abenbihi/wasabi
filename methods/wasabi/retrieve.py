@@ -72,10 +72,8 @@ def get_img_des_parallel(args, survey):
     # TODO find a pretty way to use global variable
     global result_l
     for idx in range(survey.get_size()):
-        #toto = pool.apply_async(describe_img_from_survey, args=(args, survey, idx),
         pool.apply_async(describe_img_from_survey, args=(args, survey, idx),
                 callback=collect_result)
-        #toto.get()
     pool.close()
     pool.join()
 
@@ -135,12 +133,6 @@ def retrieve_one(args, q_idx, q_img_des, db_img_des_l):
     #print("retrieve q_idx: %d"%q_idx)
     return q_idx, order
 
-
-def print_toto(args, idx):
-    #time.sleep(3)
-    #print(idx)
-    print("FUCK_YEAH")
-    return idx, idx
 
 
 def retrieve_parallel(args, q_img_des_l, db_img_des_l):

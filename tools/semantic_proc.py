@@ -83,22 +83,12 @@ def merge_small_blobs(lab):
             cv2.floodFill(mask, mask_out, (c[0], l[0]), 128)
             cc_area = np.sum(mask_out[1:-1,1:-1]==1) # blob area
             
-            # debug: to get a visual idea of a blob size
-            #print('cc_id: %d\tsize: %d\treal size: %d'%(next_cc_id-1, len(l), cc_area))
-            #cv2.imshow('current cc', (mask_out[1:-1,1:-1]*255).astype(np.uint8))
-            #stop_show = cv2.waitKey(0) & 0xFF
-            #if stop_show == ord("q"):
-            #    exit(0)
-            
             lab_copy[mask_out[1:-1, 1:-1]==1] = -1
             l, c = np.where(lab_copy==lab_id)
             
             # if this connected components is big enough, keep it
             if cc_area > 500:
-                #print('big area')
                 continue
-            #print('blob_size: %d'%cc_area)
-
             # else merge it with its neighbour
             
             # define neighbour range
@@ -110,21 +100,9 @@ def merge_small_blobs(lab):
             bc = np.maximum(0, np.min(c_mask) - patch_size)
             ec = np.minimum(cols, np.max(c_mask) + patch_size)
             
-            #cv2.rectangle(lab, (bc, br), (ec, er), 255, 1, lineType=8)
-            #cv2.imshow('lab', lab)
-            #cv2.waitKey(0)
-            #cv2.rectangle(lab, (bc, br), (ec, er), 0, 1, lineType=8)
-            #print(br, er, bc, ec)
-            
             lab_neighbour = lab[br:er, bc:ec]
-            #print(np.unique(lab_neighbour))
 
             y_db, x_db = np.where(lab_neighbour!=cst.LABEL_IGNORE)
-            #print(y_db)
-            #print(y_db.shape)
-            #print(br, er)
-            #input('wait')
-            
             y_db += br
             x_db += bc
             y_q, x_q = np.where(lab==cst.LABEL_IGNORE)
@@ -168,17 +146,6 @@ def extract_semantic_edge(params, sem_img):
                 big_contours_l.append(c)
         if len(big_contours_l)>0:
             contours_d[label] = np.vstack(big_contours_l)
-    
-    ## draw semantic contours
-    #if debug:
-    #    debug_img = np.zeros(sem_img.shape, np.uint8)
-    #    for label, contour in contours_d.items():
-    #        print('label: %d\t%s'%(label, label_name[label]))
-    #        contour = np.squeeze(contour)
-    #        debug_img[contour[:,1], contour[:,0]] = colors_v[label]
-    #        cv2.imshow('debug_img', debug_img)
-    #        if (cv2.waitKey(0) & 0xFF ) == ord("q"):
-    #            exit(0)
 
     # extract connected components from the contour
     curves_d = {}
@@ -186,17 +153,4 @@ def extract_semantic_edge(params, sem_img):
         curves = edge_proc.contours2curve(params, contour, sem_img)
         if curves is not None:
             curves_d[label] = curves
-    
-    ## draw semantic curves
-    #if debug:
-    #    for label, curves_l in curves_d.items():
-    #        print('Edge label: %d\t%s'%(label, label_name[label]))
-    #        curve_img = np.zeros(sem_img.shape, np.uint8)
-    #        for i, curve in enumerate(curves_l):
-    #            curve_img[curve[:,1], curve[:,0]] = colors_v[label]
-    #            cv2.imshow('curve_img', curve_img)
-    #            cv2.waitKey(0)
-    #    if (cv2.waitKey(0) & 0xFF) == ord("q"):
-    #        exit(0)
-
     return curves_d
